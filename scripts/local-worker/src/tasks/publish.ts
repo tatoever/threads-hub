@@ -1,0 +1,200 @@
+/**
+ * Sub-A: Publish - 予定時刻が来た投稿をThreads APIで公開
+ */
+
+import { supabase } from "../utils/supabase";
+import { notifyDiscord } from "../utils/notify";
+import type { TaskData } from "../task-executor";
+
+export async function runPublish(task: TaskData): Promise<Record<string, any>> {
+  const { account_id } = task;
+
+  // 1. Load credentials
+  const { data: token } = await supabase
+    .from("account_tokens")
+    .select("access_token")
+    .eq("account_id", account_id)
+    .eq("status", "active")
+    .single();
+
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("threads_user_id")
+    .eq("id", account_id)
+    .single();
+
+  if (!token?.access_token || !account?.threads_user_id) {
+    throw new Error("Missing Threads credentials");
+  }
+
+  // 2. Get approved posts that are due
+  const now = new Date().toISOString();
+  const { data: duePosts } = await supabase
+    .from("posts")
+    .select("*")
+    .eq("account_id", account_id)
+    .eq("status", "approved")
+    .lte("scheduled_at", now)
+    .order("scheduled_at", { ascending: true })
+    .limit(3); // Max 3 per run to avoid rate limits
+
+  if (!duePosts || duePosts.length === 0) {
+    return { status: "no_due_posts" };
+  }
+
+  const results: any[] = [];
+
+  for (const post of duePosts) {
+    try {
+      // Publish main post
+      const publishResult = await publishToThreads(
+        account.threads_user_id,
+        token.access_token,
+        post.content
+      );
+
+      // Update post status
+      await supabase
+        .from("posts")
+        .update({
+          status: "published",
+          published_at: new Date().toISOString(),
+          threads_post_id: publishResult.id,
+        })
+        .eq("id", post.id);
+
+      // Publish reply_1 (CTA tree) if exists
+      if (post.reply_1 && publishResult.id) {
+        await sleep(3000); // Wait before reply
+        try {
+          await publishReplyToThreads(
+            account.threads_user_id,
+            token.access_token,
+            publishResult.id,
+            post.reply_1
+          );
+        } catch (replyErr: any) {
+          console.warn(`[publish] Reply 1 failed for post ${post.id}: ${replyErr.message}`);
+        }
+      }
+
+      // Publish reply_2 if exists
+      if (post.reply_2 && publishResult.id) {
+        await sleep(3000);
+        try {
+          await publishReplyToThreads(
+            account.threads_user_id,
+            token.access_token,
+            publishResult.id,
+            post.reply_2
+          );
+        } catch (replyErr: any) {
+          console.warn(`[publish] Reply 2 failed for post ${post.id}: ${replyErr.message}`);
+        }
+      }
+
+      results.push({ post_id: post.id, threads_id: publishResult.id, status: "published" });
+
+      // Rate limit spacing between posts
+      await sleep(5000);
+    } catch (err: any) {
+      // Mark as failed
+      await supabase
+        .from("posts")
+        .update({ status: "failed" })
+        .eq("id", post.id);
+
+      // Alert
+      await supabase.from("system_alerts").insert({
+        account_id,
+        alert_type: "api_error",
+        severity: "warning",
+        message: `Post publish failed: ${err.message}`,
+      });
+
+      results.push({ post_id: post.id, status: "failed", error: err.message });
+    }
+  }
+
+  return { status: "completed", published: results };
+}
+
+async function publishToThreads(
+  userId: string,
+  accessToken: string,
+  text: string
+): Promise<{ id: string }> {
+  // Step 1: Create container
+  const createRes = await fetch(`https://graph.threads.net/v1.0/${userId}/threads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ media_type: "TEXT", text, access_token: accessToken }),
+  });
+
+  if (!createRes.ok) {
+    const err = await createRes.json();
+    throw new Error(`Create container failed: ${JSON.stringify(err)}`);
+  }
+
+  const { id: containerId } = await createRes.json();
+
+  // Wait for container to be ready
+  await sleep(2000);
+
+  // Step 2: Publish
+  const publishRes = await fetch(`https://graph.threads.net/v1.0/${userId}/threads_publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ creation_id: containerId, access_token: accessToken }),
+  });
+
+  if (!publishRes.ok) {
+    const err = await publishRes.json();
+    throw new Error(`Publish failed: ${JSON.stringify(err)}`);
+  }
+
+  return publishRes.json();
+}
+
+async function publishReplyToThreads(
+  userId: string,
+  accessToken: string,
+  replyToId: string,
+  text: string
+): Promise<{ id: string }> {
+  const createRes = await fetch(`https://graph.threads.net/v1.0/${userId}/threads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      media_type: "TEXT",
+      text,
+      reply_to_id: replyToId,
+      access_token: accessToken,
+    }),
+  });
+
+  if (!createRes.ok) {
+    const err = await createRes.json();
+    throw new Error(`Reply container failed: ${JSON.stringify(err)}`);
+  }
+
+  const { id: containerId } = await createRes.json();
+  await sleep(2000);
+
+  const publishRes = await fetch(`https://graph.threads.net/v1.0/${userId}/threads_publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ creation_id: containerId, access_token: accessToken }),
+  });
+
+  if (!publishRes.ok) {
+    const err = await publishRes.json();
+    throw new Error(`Reply publish failed: ${JSON.stringify(err)}`);
+  }
+
+  return publishRes.json();
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
