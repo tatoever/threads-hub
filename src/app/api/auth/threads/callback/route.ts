@@ -11,13 +11,29 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const supabase = createServiceClient();
+
+    // Load per-account App credentials
+    const { data: account } = await supabase
+      .from("accounts")
+      .select("threads_app_id, threads_app_secret")
+      .eq("id", accountId)
+      .single();
+
+    const appId = account?.threads_app_id || process.env.THREADS_APP_ID;
+    const appSecret = account?.threads_app_secret || process.env.THREADS_APP_SECRET;
+
+    if (!appId || !appSecret) {
+      return NextResponse.redirect(new URL(`/accounts/${accountId}?error=no_app_credentials`, req.url));
+    }
+
     // Step 1: Exchange code for short-lived token
     const tokenRes = await fetch("https://graph.threads.net/oauth/access_token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        client_id: process.env.THREADS_APP_ID!,
-        client_secret: process.env.THREADS_APP_SECRET!,
+        client_id: appId,
+        client_secret: appSecret,
         grant_type: "authorization_code",
         redirect_uri: process.env.NEXT_PUBLIC_THREADS_REDIRECT_URI!,
         code,
@@ -27,7 +43,7 @@ export async function GET(req: NextRequest) {
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
       console.error("Token exchange failed:", err);
-      return NextResponse.redirect(new URL("/settings?error=token_exchange", req.url));
+      return NextResponse.redirect(new URL(`/accounts/${accountId}?error=token_exchange`, req.url));
     }
 
     const { access_token: shortToken, user_id: threadsUserId } = await tokenRes.json();
@@ -36,16 +52,13 @@ export async function GET(req: NextRequest) {
     const longLived = await exchangeForLongLivedToken(shortToken);
 
     // Step 3: Save to DB
-    const supabase = createServiceClient();
     const expiresAt = new Date(Date.now() + longLived.expires_in * 1000).toISOString();
 
-    // Update account with threads_user_id
     await supabase
       .from("accounts")
       .update({ threads_user_id: threadsUserId })
       .eq("id", accountId);
 
-    // Upsert token
     await supabase
       .from("account_tokens")
       .upsert({
@@ -59,6 +72,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL(`/accounts/${accountId}?oauth=success`, req.url));
   } catch (error) {
     console.error("OAuth callback error:", error);
-    return NextResponse.redirect(new URL("/settings?error=oauth_failed", req.url));
+    return NextResponse.redirect(new URL(`/accounts/${accountId}?error=oauth_failed`, req.url));
   }
 }
