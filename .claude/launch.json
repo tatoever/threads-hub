@@ -4,8 +4,9 @@
     {
       "name": "threads-hub-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "-p", "3900"],
-      "port": 3900
+      "runtimeArgs": ["run", "dev"],
+      "port": 3900,
+      "autoPort": true
     }
   ]
 }
