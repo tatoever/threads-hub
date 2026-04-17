@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, ArrowRight } from "lucide-react";
+import { Plus, ArrowRight, Sparkles, Send, KeyRound } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar } from "@/components/ui/avatar";
 import { StatusDot, statusToTone } from "@/components/shell/StatusDot";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { cn } from "@/lib/utils/cn";
 
 interface Account {
   id: string;
@@ -17,6 +19,8 @@ interface Account {
   status: string;
   daily_post_target: number;
   default_model: string;
+  profile_picture_url: string | null;
+  profile_bio: string | null;
   account_personas: any;
   account_tokens: any;
 }
@@ -52,7 +56,7 @@ export default function AccountsPage() {
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-40" />
+            <Skeleton key={i} className="h-56" />
           ))}
         </div>
       ) : accounts.length === 0 ? (
@@ -70,78 +74,126 @@ export default function AccountsPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {accounts.map((account) => {
-            const persona = Array.isArray(account.account_personas)
-              ? account.account_personas[0]
-              : account.account_personas;
-            const token = Array.isArray(account.account_tokens)
-              ? account.account_tokens[0]
-              : account.account_tokens;
-
-            return (
-              <Link
-                key={account.id}
-                href={`/accounts/${account.id}`}
-                className="group"
-              >
-                <Card className="p-5 h-full transition-all hover:border-border-strong hover:shadow-md">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <StatusDot tone={statusToTone(account.status)} />
-                        <h2 className="font-semibold truncate group-hover:text-primary transition-colors">
-                          {persona?.display_name || account.name}
-                        </h2>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1 truncate">
-                        @{account.slug}
-                      </p>
-                    </div>
-                    <ArrowRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap items-center gap-1.5">
-                    {persona?.genre && (
-                      <Badge variant="outline">{persona.genre}</Badge>
-                    )}
-                    {persona?.niche && (
-                      <Badge variant="secondary">{persona.niche}</Badge>
-                    )}
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-3 gap-2 text-xs pt-4 border-t border-border">
-                    <div>
-                      <p className="text-muted-foreground">投稿</p>
-                      <p className="font-semibold tabular-nums mt-0.5">
-                        {account.daily_post_target}
-                        <span className="text-muted-foreground text-[10px] ml-0.5">本/日</span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">モデル</p>
-                      <p className="font-semibold mt-0.5">
-                        {account.default_model === "opus" ? "Opus" : "Sonnet"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">API</p>
-                      <p
-                        className={
-                          token?.status === "active"
-                            ? "text-success font-semibold mt-0.5"
-                            : "text-warning font-semibold mt-0.5"
-                        }
-                      >
-                        {token?.status === "active" ? "接続済" : "未接続"}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            );
-          })}
+          {accounts.map((account) => (
+            <AccountCard key={account.id} account={account} />
+          ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function AccountCard({ account }: { account: Account }) {
+  const persona = Array.isArray(account.account_personas)
+    ? account.account_personas[0]
+    : account.account_personas;
+  const token = Array.isArray(account.account_tokens)
+    ? account.account_tokens[0]
+    : account.account_tokens;
+
+  const displayName = persona?.display_name || account.name;
+  const bio = account.profile_bio || persona?.background || null;
+  const apiActive = token?.status === "active";
+
+  return (
+    <Link href={`/accounts/${account.id}`} className="group">
+      <Card className="h-full overflow-hidden transition-all hover:border-border-strong hover:shadow-md">
+        {/* Header: name left / avatar right */}
+        <div className="p-5 pb-4">
+          <div className="flex items-start gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <StatusDot tone={statusToTone(account.status)} />
+                <h2 className="text-base font-semibold truncate group-hover:text-primary transition-colors">
+                  {displayName}
+                </h2>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                @{account.slug}
+              </p>
+            </div>
+            <Avatar
+              src={account.profile_picture_url}
+              name={displayName}
+              seed={account.id}
+              size="lg"
+              ring
+            />
+          </div>
+
+          {/* Bio */}
+          {bio ? (
+            <p className="mt-3 text-xs text-foreground/80 whitespace-pre-wrap line-clamp-3 leading-relaxed">
+              {bio}
+            </p>
+          ) : (
+            <p className="mt-3 text-xs text-muted-foreground italic">
+              プロフィール未設定
+            </p>
+          )}
+
+          {/* Tags */}
+          {(persona?.genre || persona?.niche) && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {persona?.genre && <Badge variant="outline">{persona.genre}</Badge>}
+              {persona?.niche && <Badge variant="secondary">{persona.niche}</Badge>}
+            </div>
+          )}
+        </div>
+
+        {/* Footer stats */}
+        <div className="grid grid-cols-3 border-t border-border bg-surface-subtle/60">
+          <StatCell
+            icon={Send}
+            label="投稿"
+            value={
+              <span>
+                {account.daily_post_target}
+                <span className="text-[10px] text-muted-foreground ml-0.5">本/日</span>
+              </span>
+            }
+          />
+          <StatCell
+            icon={Sparkles}
+            label="モデル"
+            value={account.default_model === "opus" ? "Opus" : "Sonnet"}
+          />
+          <StatCell
+            icon={KeyRound}
+            label="API"
+            value={
+              <span className={apiActive ? "text-success" : "text-warning"}>
+                {apiActive ? "接続済" : "未接続"}
+              </span>
+            }
+          />
+          <span className="sr-only">
+            <ArrowRight />
+          </span>
+        </div>
+      </Card>
+    </Link>
+  );
+}
+
+function StatCell({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className={cn("flex flex-col items-center justify-center px-3 py-3 border-r border-border last:border-r-0")}>
+      <div className="inline-flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wider">
+        <Icon className="size-3" />
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-semibold tabular-nums leading-tight">
+        {value}
+      </div>
     </div>
   );
 }

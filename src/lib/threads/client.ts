@@ -5,6 +5,33 @@ interface ThreadsCredentials {
   userId: string;
 }
 
+export interface ThreadsProfile {
+  id: string;
+  username?: string;
+  threads_profile_picture_url?: string;
+  threads_biography?: string;
+  name?: string;
+}
+
+// Fetch user profile (avatar, bio, username)
+export async function fetchProfile(
+  credentials: ThreadsCredentials,
+): Promise<ThreadsProfile> {
+  const url = new URL(`${THREADS_API_BASE}/${credentials.userId}`);
+  url.searchParams.set(
+    "fields",
+    "id,username,name,threads_profile_picture_url,threads_biography",
+  );
+  url.searchParams.set("access_token", credentials.accessToken);
+
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Threads fetchProfile failed ${res.status}: ${body}`);
+  }
+  return (await res.json()) as ThreadsProfile;
+}
+
 // Publish a text post to Threads
 export async function publishPost(
   credentials: ThreadsCredentials,

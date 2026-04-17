@@ -14,7 +14,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusDot, statusToTone } from "@/components/shell/StatusDot";
-import { PageHeader } from "@/components/dashboard/PageHeader";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { StatusToggle } from "@/components/account/StatusToggle";
 import { AccountTabs } from "@/components/account/AccountTabs";
@@ -22,6 +21,8 @@ import { PostList } from "@/components/account/PostList";
 import { FollowerChart } from "@/components/account/FollowerChart";
 import { CommentPanel } from "@/components/account/CommentPanel";
 import { NoteFeed } from "@/components/account/NoteFeed";
+import { RefreshProfileButton } from "@/components/account/RefreshProfileButton";
+import { Avatar } from "@/components/ui/avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -54,29 +55,47 @@ export default async function AccountDetailPage({
 
   const apiConnected = token?.status === "active";
 
+  const displayName = persona?.display_name || account.name;
+
   return (
     <div className="p-6 space-y-6 max-w-[1400px]">
-      <PageHeader
-        title={
-          <span className="flex items-center gap-3">
-            <StatusDot tone={statusToTone(account.status)} className="size-3" />
-            {persona?.display_name || account.name}
-          </span>
-        }
-        description={
-          <span>
-            @{account.slug}
-            {persona?.genre ? ` · ${persona.genre}` : ""}
-            {persona?.niche ? ` · ${persona.niche}` : ""}
-          </span>
-        }
-        actions={
-          <>
-            <StatusBadge status={account.status} />
-            <StatusToggle accountId={id} currentStatus={account.status} />
-          </>
-        }
-      />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-4 min-w-0">
+          <Avatar
+            src={account.profile_picture_url}
+            name={displayName}
+            seed={account.id}
+            size="xl"
+            ring
+          />
+          <div className="min-w-0 pt-1">
+            <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+              <StatusDot tone={statusToTone(account.status)} className="size-3" />
+              {displayName}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              @{account.slug}
+              {persona?.genre ? ` · ${persona.genre}` : ""}
+              {persona?.niche ? ` · ${persona.niche}` : ""}
+            </p>
+            {account.profile_bio && (
+              <p className="mt-3 text-sm text-foreground/80 whitespace-pre-wrap max-w-[560px] leading-relaxed">
+                {account.profile_bio}
+              </p>
+            )}
+            {account.profile_synced_at && (
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                プロフィール最終同期: {new Date(account.profile_synced_at).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <StatusBadge status={account.status} />
+          <RefreshProfileButton accountId={id} disabled={!apiConnected} />
+          <StatusToggle accountId={id} currentStatus={account.status} />
+        </div>
+      </div>
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
