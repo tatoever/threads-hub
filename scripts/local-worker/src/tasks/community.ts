@@ -23,13 +23,16 @@ export async function runCommunity(task: TaskData): Promise<Record<string, any>>
     .limit(100);
 
   if (!comments || comments.length === 0) {
-    await supabase.from("pipeline_runs").upsert({
-      account_id, date, phase: "community",
-      status: "completed",
-      output_data: { status: "no_comments" },
-      model_used: "sonnet",
-      completed_at: new Date().toISOString(),
-    });
+    await supabase.from("pipeline_runs")
+      .update({
+        status: "completed",
+        output_data: { status: "no_comments" },
+        model_used: "sonnet",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("account_id", account_id)
+      .eq("date", date)
+      .eq("phase", "community");
     return { status: "skipped", reason: "no_recent_comments" };
   }
 
@@ -53,13 +56,16 @@ ${comments.map((c: any) => `- @${c.author_username}: ${c.content}`).join("\n")}
     systemPrompt: "SNSコミュニティアナリストとして、コメントを分析し実用的なインサイトをJSON出力してください。",
   });
 
-  await supabase.from("pipeline_runs").upsert({
-    account_id, date, phase: "community",
-    status: "completed",
-    output_data: analysis,
-    model_used: "sonnet",
-    completed_at: new Date().toISOString(),
-  });
+  await supabase.from("pipeline_runs")
+    .update({
+      status: "completed",
+      output_data: analysis,
+      model_used: "sonnet",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("account_id", account_id)
+    .eq("date", date)
+    .eq("phase", "community");
 
   return { status: "completed", comments_analyzed: comments.length };
 }

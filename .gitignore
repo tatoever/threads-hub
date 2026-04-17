@@ -44,3 +44,5 @@ src/app/page.tsx
 scripts/local-worker/node_modules/
 scripts/local-worker/dist/
 scripts/local-worker/logs/
+
+.vercel

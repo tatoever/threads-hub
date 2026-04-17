@@ -26,14 +26,19 @@ export async function runIntelligence(task: TaskData): Promise<Record<string, an
     .order("published_at", { ascending: false });
 
   if (!recentPosts || recentPosts.length === 0) {
-    // No data yet - skip
-    await supabase.from("pipeline_runs").upsert({
-      account_id, date, phase: "intelligence",
-      status: "completed",
-      output_data: { status: "no_data" },
-      model_used: "sonnet",
-      completed_at: new Date().toISOString(),
-    });
+    console.log("[intelligence] No recent posts, updating pipeline_runs...");
+    const { error: updateErr } = await supabase.from("pipeline_runs")
+      .update({
+        status: "completed",
+        output_data: { status: "no_data" },
+        model_used: "sonnet",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("account_id", account_id)
+      .eq("date", date)
+      .eq("phase", "intelligence");
+    if (updateErr) console.error("[intelligence] pipeline_runs update failed:", updateErr.message);
+    else console.log("[intelligence] pipeline_runs updated OK");
     return { status: "skipped", reason: "no_recent_posts" };
   }
 
@@ -88,13 +93,16 @@ ${JSON.stringify(postsForAnalysis, null, 2)}
   });
 
   // 5. Save
-  await supabase.from("pipeline_runs").upsert({
-    account_id, date, phase: "intelligence",
-    status: "completed",
-    output_data: analysis,
-    model_used: "sonnet",
-    completed_at: new Date().toISOString(),
-  });
+  await supabase.from("pipeline_runs")
+    .update({
+      status: "completed",
+      output_data: analysis,
+      model_used: "sonnet",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("account_id", account_id)
+    .eq("date", date)
+    .eq("phase", "intelligence");
 
   return { status: "completed", posts_analyzed: recentPosts.length };
 }

@@ -72,15 +72,16 @@ export async function runResearch(task: TaskData): Promise<Record<string, any>> 
   });
 
   // 6. Update pipeline_runs
-  await supabase.from("pipeline_runs").upsert({
-    account_id,
-    date,
-    phase: "research",
-    status: "completed",
-    output_data: analysis,
-    model_used: "sonnet",
-    completed_at: new Date().toISOString(),
-  });
+  await supabase.from("pipeline_runs")
+    .update({
+      status: "completed",
+      output_data: analysis,
+      model_used: "sonnet",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("account_id", account_id)
+    .eq("date", date)
+    .eq("phase", "research");
 
   return { status: "completed", sources_processed: sources.length };
 }

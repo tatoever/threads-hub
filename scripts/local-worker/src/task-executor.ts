@@ -10,6 +10,9 @@ import { runGenerate } from "./tasks/generate";
 import { runReply } from "./tasks/reply";
 import { runPublish } from "./tasks/publish";
 import { runAnalytics } from "./tasks/analytics";
+import { runConceptResearch } from "./tasks/concept-research";
+import { runConceptAnalysis } from "./tasks/concept-analysis";
+import { runConceptProposal } from "./tasks/concept-proposal";
 
 export interface TaskData {
   id: string;
@@ -44,6 +47,14 @@ export async function executeTask(task: TaskData): Promise<Record<string, any>> 
       return runReply(task);
     case "analytics":
       return runAnalytics(task);
+
+    // Concept Designer (3-phase subsystem for per-account concept design)
+    case "concept_research":
+      return runConceptResearch(task);
+    case "concept_analysis":
+      return runConceptAnalysis(task);
+    case "concept_proposal":
+      return runConceptProposal(task);
 
     default:
       throw new Error(`Unknown task type: ${task.task_type}`);

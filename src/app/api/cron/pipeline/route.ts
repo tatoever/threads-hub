@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
         date: today,
         phase,
         status: "pending",
-      });
+      }, { onConflict: "account_id,date,phase" });
     }
   }
 

@@ -1,26 +1,44 @@
+/**
+ * PM2 Ecosystem Config — threads-hub (マルチアカウント基盤)
+ *
+ * 1プロセスのみ: queue-worker がタスクキューをポーリングして全タスクを逐次実行。
+ * Claude CLI はセマフォで直列実行 (concurrency=1) のためインスタンスは1。
+ * おきつねさま (threads-auto-agent) とは完全に別プロセス。
+ *
+ * 起動:
+ *   cd C:/Dev/threads-hub/scripts/local-worker
+ *   npx pm2 start ecosystem.config.js
+ *   npx pm2 save
+ *
+ * 再起動:
+ *   npx pm2 restart threads-hub-worker
+ *
+ * ログ確認:
+ *   npx pm2 logs threads-hub-worker
+ */
 module.exports = {
   apps: [
     {
       name: "threads-hub-worker",
-      script: "npx",
-      args: "tsx src/queue-worker.ts",
-      cwd: __dirname,
-      instances: 2, // 2 workers for parallel task processing
-      exec_mode: "fork",
+      script: "node_modules/tsx/dist/cli.mjs",
+      args: "src/queue-worker.ts",
+      cwd: "C:/Dev/threads-hub/scripts/local-worker",
+
+      node_args: "--max-old-space-size=512",
+      env: {},
+
       autorestart: true,
-      watch: false,
-      max_memory_restart: "500M",
-      env: {
-        NODE_ENV: "production",
-      },
-      // Logging
-      error_file: "./logs/error.log",
-      out_file: "./logs/out.log",
-      merge_logs: true,
-      log_date_format: "YYYY-MM-DD HH:mm:ss",
-      // Restart policy
-      max_restarts: 10,
+      max_restarts: 20,
+      min_uptime: "30s",
       restart_delay: 5000,
+      max_memory_restart: "600M",
+
+      error_file: "C:/Users/X99-F8/.pm2/logs/threads-hub-worker-error.log",
+      out_file: "C:/Users/X99-F8/.pm2/logs/threads-hub-worker-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+      merge_logs: true,
+
+      watch: false,
     },
   ],
 };

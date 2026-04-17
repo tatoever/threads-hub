@@ -95,15 +95,16 @@ export async function runMeeting(task: TaskData): Promise<Record<string, any>> {
   });
 
   // 9. Save
-  await supabase.from("pipeline_runs").upsert({
-    account_id,
-    date,
-    phase: "meeting",
-    status: "completed",
-    output_data: contentPlan,
-    model_used: model,
-    completed_at: new Date().toISOString(),
-  });
+  await supabase.from("pipeline_runs")
+    .update({
+      status: "completed",
+      output_data: contentPlan,
+      model_used: model,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("account_id", account_id)
+    .eq("date", date)
+    .eq("phase", "meeting");
 
   return { status: "completed", slots: contentPlan?.slots?.length || 0 };
 }

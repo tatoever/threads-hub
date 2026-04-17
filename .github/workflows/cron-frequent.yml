@@ -1,0 +1,29 @@
+name: Cron Frequent (15min)
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: cron-frequent
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /api/cron/generate
+        run: |
+          curl -sS --fail --max-time 60 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.VERCEL_CRON_URL }}/api/cron/generate" \
+            || echo "generate endpoint failed (non-blocking)"
+
+      - name: Call /api/cron/subsystems
+        run: |
+          curl -sS --fail --max-time 60 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.VERCEL_CRON_URL }}/api/cron/subsystems" \
+            || echo "subsystems endpoint failed (non-blocking)"
