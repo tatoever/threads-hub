@@ -156,16 +156,21 @@ function executeClaudeCli(
     parts.push("=== OUTPUT ===");
     if (expectJson) {
       parts.push("以下のJSON形式のみを出力してください。説明・マークダウン・コードブロック(```)は一切不要。純粋なJSONのみ。");
+      parts.push("重要: 文字列値の中にダブルクォート(\")が必要な場合は必ず \\\" でエスケープしてください。バックスラッシュは \\\\、改行は \\n でエスケープしてください。JSON.parse() がそのまま通る形式で出力してください。");
     } else {
       parts.push("生成テキストのみを出力してください。説明・マークダウン・コードブロック・ステップ番号は一切不要。最終テキストのみ。");
     }
     const fullPrompt = parts.join("\n");
 
-    // CLAUDECODE 除外（���ストセッション防止）
+    // CLAUDE_* 系環境変数を全削除（PM2 daemon が Claude Code から継承した内部フラグが
+    // 子 claude CLI を誤動作させる: CLAUDE_CODE_OAUTH_TOKEN, CLAUDE_INTERNAL_FC_OVERRIDES 等）
     const env = { ...process.env };
     delete env.CLAUDECODE;
+    for (const k of Object.keys(env)) {
+      if (k.startsWith("CLAUDE_")) delete env[k];
+    }
 
-    const args = ["-p", "--model", model, "--output-format", "text"];
+    const args = ["-p", "--model", model, "--output-format", "text", "--verbose"];
     if (maxTokens) args.push("--max-tokens", String(maxTokens));
 
     console.log(`[claude-cli] 実行中... (${fullPrompt.length}文字, model: ${model})`);
