@@ -1,79 +1,119 @@
 "use client";
 
 import { useState } from "react";
+import { Bell, Play, Server, Loader2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 export default function SettingsPage() {
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [triggering, setTriggering] = useState(false);
 
   async function testDiscord() {
+    setTesting(true);
     setTestResult("送信中...");
-    const res = await fetch("/api/settings/test-discord", { method: "POST" });
-    if (res.ok) {
-      setTestResult("送信完了!");
-    } else {
-      setTestResult("失敗");
+    try {
+      const res = await fetch("/api/settings/test-discord", { method: "POST" });
+      setTestResult(res.ok ? "送信完了" : "失敗");
+    } finally {
+      setTesting(false);
     }
   }
 
   async function triggerPipeline() {
     if (!confirm("全アクティブアカウントのパイプラインを開始しますか?")) return;
-    const res = await fetch("/api/cron/pipeline", {
-      headers: { Authorization: `Bearer ${prompt("CRON_SECRET を入力:")}` },
-    });
-    const data = await res.json();
-    alert(JSON.stringify(data, null, 2));
+    setTriggering(true);
+    try {
+      const secret = prompt("CRON_SECRET を入力:");
+      if (!secret) return;
+      const res = await fetch("/api/cron/pipeline", {
+        headers: { Authorization: `Bearer ${secret}` },
+      });
+      const data = await res.json();
+      alert(JSON.stringify(data, null, 2));
+    } finally {
+      setTriggering(false);
+    }
   }
 
   return (
-    <div className="p-6 space-y-8 max-w-2xl">
-      <h1 className="text-2xl font-bold">設定</h1>
+    <div className="p-6 space-y-6 max-w-[900px]">
+      <PageHeader
+        title="設定"
+        description="システム情報と運用ツール"
+      />
 
-      {/* System info */}
-      <section className="bg-gray-900 border border-gray-800 rounded-lg p-5">
-        <h2 className="text-lg font-semibold mb-4">システム情報</h2>
-        <dl className="space-y-2 text-sm">
-          <div className="flex">
-            <dt className="w-40 text-gray-500">プロジェクト</dt>
-            <dd>threads-hub</dd>
-          </div>
-          <div className="flex">
-            <dt className="w-40 text-gray-500">アーキテクチャ</dt>
-            <dd>Next.js + Supabase + PM2 Worker</dd>
-          </div>
-          <div className="flex">
-            <dt className="w-40 text-gray-500">AI生成</dt>
-            <dd>ローカルCLI (claude -p)</dd>
-          </div>
+      <Card className="overflow-hidden">
+        <div className="border-b border-border px-5 py-3.5 flex items-center gap-2">
+          <Server className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold">システム情報</h2>
+        </div>
+        <dl className="divide-y divide-border">
+          <InfoRow label="プロジェクト" value="threads-hub" />
+          <InfoRow label="アーキテクチャ" value="Next.js + Supabase + PM2 Worker" />
+          <InfoRow label="AI生成" value="ローカルCLI (claude -p)" />
+          <InfoRow
+            label="開発ポート"
+            value={<Badge variant="outline">3900</Badge>}
+          />
         </dl>
-      </section>
+      </Card>
 
-      {/* Manual triggers */}
-      <section className="bg-gray-900 border border-gray-800 rounded-lg p-5">
-        <h2 className="text-lg font-semibold mb-4">手動トリガー</h2>
-        <div className="space-y-3">
+      <Card className="overflow-hidden">
+        <div className="border-b border-border px-5 py-3.5 flex items-center gap-2">
+          <Play className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold">手動トリガー</h2>
+        </div>
+        <div className="p-5">
           <button
             onClick={triggerPipeline}
-            className="block w-full text-left px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition-colors"
+            disabled={triggering}
+            className="w-full text-left rounded-md border border-border bg-surface hover:bg-surface-hover transition-colors p-4 disabled:opacity-50"
           >
-            <span className="font-medium">朝パイプライン実行</span>
-            <span className="text-gray-400 ml-2">全アカウントのPhase 1-4を開始</span>
+            <div className="flex items-center gap-3">
+              {triggering ? (
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              ) : (
+                <Play className="size-5 text-primary" />
+              )}
+              <div>
+                <p className="font-medium text-sm">朝パイプライン実行</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  全アカウントのPhase 1-4を開始
+                </p>
+              </div>
+            </div>
           </button>
         </div>
-      </section>
+      </Card>
 
-      {/* Discord test */}
-      <section className="bg-gray-900 border border-gray-800 rounded-lg p-5">
-        <h2 className="text-lg font-semibold mb-4">Discord通知テスト</h2>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={testDiscord}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium"
-          >
-            テスト送信
-          </button>
-          {testResult && <span className="text-sm text-gray-400">{testResult}</span>}
+      <Card className="overflow-hidden">
+        <div className="border-b border-border px-5 py-3.5 flex items-center gap-2">
+          <Bell className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold">Discord通知テスト</h2>
         </div>
-      </section>
+        <div className="p-5 flex items-center gap-3">
+          <Button onClick={testDiscord} disabled={testing}>
+            {testing ? <Loader2 className="size-4 animate-spin" /> : <Bell className="size-4" />}
+            テスト送信
+          </Button>
+          {testResult && (
+            <span className="text-sm text-muted-foreground">{testResult}</span>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between px-5 py-3">
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="text-sm font-medium">{value}</dd>
     </div>
   );
 }

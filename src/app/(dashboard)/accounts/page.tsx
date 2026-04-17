@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Plus, ArrowRight } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StatusDot, statusToTone } from "@/components/shell/StatusDot";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 interface Account {
   id: string;
@@ -27,86 +34,114 @@ export default function AccountsPage() {
       });
   }, []);
 
-  if (loading) return <div className="p-6 text-gray-400">読み込み中...</div>;
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">アカウント管理</h1>
-        <Link
-          href="/accounts/new"
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors"
-        >
-          + 新規追加
-        </Link>
-      </div>
-
-      <div className="grid gap-4">
-        {accounts.map((account) => {
-          const persona = Array.isArray(account.account_personas)
-            ? account.account_personas[0]
-            : account.account_personas;
-          const token = Array.isArray(account.account_tokens)
-            ? account.account_tokens[0]
-            : account.account_tokens;
-
-          return (
-            <Link
-              key={account.id}
-              href={`/accounts/${account.id}`}
-              className="block bg-gray-900 border border-gray-800 rounded-lg p-5 hover:border-gray-600 transition-colors"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-semibold">
-                      {persona?.display_name || account.name}
-                    </h2>
-                    <StatusBadge status={account.status} />
-                  </div>
-                  <p className="text-gray-400 text-sm mt-1">
-                    @{account.slug} / {persona?.genre || "ジャンル未設定"} / {persona?.niche || ""}
-                  </p>
-                </div>
-                <div className="text-right text-sm text-gray-400">
-                  <p>{account.daily_post_target}本/日</p>
-                  <p className="text-xs">
-                    {account.default_model === "opus" ? "Opus" : "Sonnet"}
-                  </p>
-                  <p className="text-xs mt-1">
-                    {token?.status === "active" ? (
-                      <span className="text-green-400">API接続済</span>
-                    ) : (
-                      <span className="text-yellow-400">未接続</span>
-                    )}
-                  </p>
-                </div>
-              </div>
+    <div className="p-6 space-y-6 max-w-[1400px]">
+      <PageHeader
+        title="アカウント管理"
+        description={`登録済み ${accounts.length} アカウント`}
+        actions={
+          <Button asChild>
+            <Link href="/accounts/new">
+              <Plus className="size-4" />
+              新規追加
             </Link>
-          );
-        })}
+          </Button>
+        }
+      />
 
-        {accounts.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-lg">まだアカウントがありません</p>
-            <p className="text-sm mt-2">「+ 新規追加」から始めましょう</p>
-          </div>
-        )}
-      </div>
+      {loading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-40" />
+          ))}
+        </div>
+      ) : accounts.length === 0 ? (
+        <Card className="flex flex-col items-center justify-center py-16">
+          <p className="text-lg font-medium">まだアカウントがありません</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            「新規追加」から始めましょう
+          </p>
+          <Button asChild className="mt-4">
+            <Link href="/accounts/new">
+              <Plus className="size-4" />
+              新規追加
+            </Link>
+          </Button>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {accounts.map((account) => {
+            const persona = Array.isArray(account.account_personas)
+              ? account.account_personas[0]
+              : account.account_personas;
+            const token = Array.isArray(account.account_tokens)
+              ? account.account_tokens[0]
+              : account.account_tokens;
+
+            return (
+              <Link
+                key={account.id}
+                href={`/accounts/${account.id}`}
+                className="group"
+              >
+                <Card className="p-5 h-full transition-all hover:border-border-strong hover:shadow-md">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <StatusDot tone={statusToTone(account.status)} />
+                        <h2 className="font-semibold truncate group-hover:text-primary transition-colors">
+                          {persona?.display_name || account.name}
+                        </h2>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        @{account.slug}
+                      </p>
+                    </div>
+                    <ArrowRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                    {persona?.genre && (
+                      <Badge variant="outline">{persona.genre}</Badge>
+                    )}
+                    {persona?.niche && (
+                      <Badge variant="secondary">{persona.niche}</Badge>
+                    )}
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-3 gap-2 text-xs pt-4 border-t border-border">
+                    <div>
+                      <p className="text-muted-foreground">投稿</p>
+                      <p className="font-semibold tabular-nums mt-0.5">
+                        {account.daily_post_target}
+                        <span className="text-muted-foreground text-[10px] ml-0.5">本/日</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">モデル</p>
+                      <p className="font-semibold mt-0.5">
+                        {account.default_model === "opus" ? "Opus" : "Sonnet"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">API</p>
+                      <p
+                        className={
+                          token?.status === "active"
+                            ? "text-success font-semibold mt-0.5"
+                            : "text-warning font-semibold mt-0.5"
+                        }
+                      >
+                        {token?.status === "active" ? "接続済" : "未接続"}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    active: "bg-green-900 text-green-300",
-    testing: "bg-yellow-900 text-yellow-300",
-    setup: "bg-gray-700 text-gray-300",
-    paused: "bg-red-900 text-red-300",
-  };
-  return (
-    <span className={`px-2 py-0.5 rounded-full text-xs ${styles[status] || styles.setup}`}>
-      {status}
-    </span>
   );
 }

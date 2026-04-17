@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Sparkles, Loader2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
@@ -30,34 +33,36 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 p-8">
-        <h1 className="text-2xl font-bold text-white text-center">
-          Threads Hub
-        </h1>
-        <p className="text-gray-400 text-center text-sm">
-          Multi-Account Management
-        </p>
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <Card className="w-full max-w-sm p-8">
+        <div className="flex flex-col items-center text-center mb-6">
+          <span className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground mb-3">
+            <Sparkles className="size-5" />
+          </span>
+          <h1 className="text-xl font-semibold tracking-tight">Threads Hub</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Multi-Account Management
+          </p>
+        </div>
 
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-          autoFocus
-        />
-
-        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
-        >
-          {loading ? "..." : "ログイン"}
-        </button>
-      </form>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="パスワード"
+            className="w-full h-10 px-3 rounded-md border border-border bg-surface text-foreground text-sm outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background placeholder:text-muted-foreground"
+            autoFocus
+          />
+          {error && (
+            <p className="text-danger text-sm text-center">{error}</p>
+          )}
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading && <Loader2 className="size-4 animate-spin" />}
+            ログイン
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }

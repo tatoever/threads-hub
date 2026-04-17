@@ -1,4 +1,13 @@
 import { createServiceClient } from "@/lib/supabase/client";
+import { Users, Send, AlertTriangle, Activity } from "lucide-react";
+import { KpiCard } from "@/components/dashboard/KpiCard";
+import {
+  AccountMatrix,
+  type MatrixRow,
+  type PhaseCellState,
+} from "@/components/dashboard/AccountMatrix";
+import { AlertStack, type AlertItem } from "@/components/dashboard/AlertStack";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -12,26 +21,34 @@ export default async function DashboardPage() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  // Get today's post counts per account
   const { data: todayPosts } = await supabase
     .from("posts")
     .select("account_id, status")
     .gte("scheduled_at", `${today}T00:00:00`)
     .lt("scheduled_at", `${today}T23:59:59`);
 
-  // Get today's pipeline status
   const { data: pipelineRuns } = await supabase
     .from("pipeline_runs")
     .select("account_id, phase, status")
     .eq("date", today);
 
-  // Get unresolved alerts
   const { data: alerts } = await supabase
     .from("system_alerts")
-    .select("*")
+    .select("id, severity, alert_type, message, created_at")
     .eq("resolved", false)
     .order("created_at", { ascending: false })
     .limit(5);
+
+  const { data: dailyStats } = await supabase
+    .from("account_daily_stats")
+    .select("account_id, follower_count, follower_delta")
+    .eq("date", today);
+
+  const { data: todayComments } = await supabase
+    .from("comments")
+    .select("account_id, reply_status")
+    .gte("created_at", `${today}T00:00:00`)
+    .lt("created_at", `${today}T23:59:59`);
 
   const postsByAccount = new Map<string, { published: number; total: number }>();
   todayPosts?.forEach((p) => {
@@ -41,168 +58,186 @@ export default async function DashboardPage() {
     postsByAccount.set(p.account_id, entry);
   });
 
-  const pipelineByAccount = new Map<string, string>();
+  const phasesByAccount = new Map<string, Record<string, PhaseCellState>>();
   pipelineRuns?.forEach((r) => {
-    const current = pipelineByAccount.get(r.account_id);
-    if (r.status === "failed") {
-      pipelineByAccount.set(r.account_id, "error");
-    } else if (r.status === "processing" && current !== "error") {
-      pipelineByAccount.set(r.account_id, "running");
-    } else if (!current) {
-      pipelineByAccount.set(r.account_id, r.status === "completed" ? "done" : "waiting");
-    }
+    const current = phasesByAccount.get(r.account_id) ?? {};
+    current[r.phase] = mapPhase(r.status);
+    phasesByAccount.set(r.account_id, current);
   });
 
-  const totalPublished = Array.from(postsByAccount.values()).reduce((s, v) => s + v.published, 0);
-  const totalPosts = Array.from(postsByAccount.values()).reduce((s, v) => s + v.total, 0);
+  const statsByAccount = new Map<string, { count: number | null; delta: number | null }>();
+  dailyStats?.forEach((s: any) => {
+    statsByAccount.set(s.account_id, {
+      count: s.follower_count,
+      delta: s.follower_delta,
+    });
+  });
+
+  const commentsByAccount = new Map<string, { total: number; pending: number }>();
+  todayComments?.forEach((c: any) => {
+    const e = commentsByAccount.get(c.account_id) ?? { total: 0, pending: 0 };
+    e.total++;
+    if (c.reply_status === "pending") e.pending++;
+    commentsByAccount.set(c.account_id, e);
+  });
+
+  const rows: MatrixRow[] = (accounts ?? []).map((account: any): MatrixRow => {
+    const persona = Array.isArray(account.account_personas)
+      ? account.account_personas[0]
+      : account.account_personas;
+    const posts = postsByAccount.get(account.id) ?? { published: 0, total: 0 };
+    const stats = statsByAccount.get(account.id);
+    const comments = commentsByAccount.get(account.id);
+    return {
+      id: account.id,
+      name: account.name,
+      displayName: persona?.display_name ?? null,
+      slug: account.slug,
+      genre: persona?.genre ?? null,
+      status: account.status,
+      published: posts.published,
+      total: posts.total,
+      target: account.daily_post_target ?? 0,
+      phases: phasesByAccount.get(account.id) ?? {},
+      followerCount: stats?.count ?? null,
+      followerDelta: stats?.delta ?? null,
+      commentsToday: comments?.total ?? 0,
+      commentsPending: comments?.pending ?? 0,
+    };
+  });
+
+  const activeCount = rows.filter((r) => r.status === "active").length;
+  const totalTarget = rows.reduce((s, r) => s + r.target, 0);
+  const totalPublished = rows.reduce((s, r) => s + r.published, 0);
+  const totalPlanned = rows.reduce((s, r) => s + r.total, 0);
   const errorCount = alerts?.length ?? 0;
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">ダッシュボード</h1>
-        <p className="text-gray-400 text-sm">{today}</p>
-      </div>
+  const totalPhaseCells = rows.length * 5;
+  const donePhaseCells = rows.reduce(
+    (sum, r) => sum + Object.values(r.phases).filter((s) => s === "done").length,
+    0,
+  );
+  const phaseProgress = totalPhaseCells > 0 ? (donePhaseCells / totalPhaseCells) * 100 : 0;
 
-      {/* Summary bar */}
-      <div className="grid grid-cols-3 gap-4">
-        <SummaryCard label="今日の投稿" value={`${totalPublished}/${totalPosts}`} />
-        <SummaryCard
-          label="アクティブアカウント"
-          value={`${accounts?.filter((a) => a.status === "active").length ?? 0}`}
+  const todayLabel = new Date().toLocaleDateString("ja-JP", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+    timeZone: "Asia/Tokyo",
+  });
+
+  return (
+    <div className="p-6 space-y-6 max-w-[1400px]">
+      <PageHeader
+        title="ダッシュボード"
+        description={`${todayLabel} · 10アカウント運用基盤の稼働状況`}
+      />
+
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          label="今日の投稿達成"
+          value={
+            <span>
+              {totalPublished}
+              <span className="text-muted-foreground text-base font-medium">
+                /{totalTarget || totalPlanned || 0}
+              </span>
+            </span>
+          }
+          hint={totalPlanned > 0 ? `公開 ${totalPublished} / 予定 ${totalPlanned}` : "予定なし"}
+          icon={Send}
+          tone={
+            totalTarget > 0 && totalPublished / totalTarget >= 1
+              ? "success"
+              : totalTarget > 0 && totalPublished / totalTarget >= 0.5
+              ? "default"
+              : "warning"
+          }
+          progress={totalTarget > 0 ? (totalPublished / totalTarget) * 100 : 0}
         />
-        <SummaryCard
+        <KpiCard
+          label="アクティブ"
+          value={
+            <span>
+              {activeCount}
+              <span className="text-muted-foreground text-base font-medium">
+                /{rows.length}
+              </span>
+            </span>
+          }
+          hint="稼働中アカウント"
+          icon={Users}
+          tone="info"
+        />
+        <KpiCard
+          label="パイプライン進捗"
+          value={`${Math.round(phaseProgress)}%`}
+          hint={`${donePhaseCells} / ${totalPhaseCells} フェーズ完了`}
+          icon={Activity}
+          tone="default"
+          progress={phaseProgress}
+        />
+        <KpiCard
           label="未解決アラート"
-          value={`${errorCount}`}
-          variant={errorCount > 0 ? "warning" : "default"}
+          value={errorCount}
+          hint={errorCount > 0 ? "確認が必要" : "クリア"}
+          icon={AlertTriangle}
+          tone={errorCount > 0 ? "danger" : "success"}
         />
-      </div>
+      </section>
 
-      {/* Account table */}
-      <div className="bg-gray-900 rounded-lg border border-gray-800">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-gray-400 border-b border-gray-800">
-              <th className="text-left p-3">アカウント</th>
-              <th className="text-left p-3">ジャンル</th>
-              <th className="text-center p-3">状態</th>
-              <th className="text-center p-3">今日の投稿</th>
-              <th className="text-center p-3">パイプライン</th>
-            </tr>
-          </thead>
-          <tbody>
-            {accounts?.map((account) => {
-              const posts = postsByAccount.get(account.id);
-              const pipeline = pipelineByAccount.get(account.id);
-              const persona = Array.isArray(account.account_personas)
-                ? account.account_personas[0]
-                : account.account_personas;
+      <AccountMatrix rows={rows} />
 
-              return (
-                <tr key={account.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                  <td className="p-3">
-                    <a href={`/accounts/${account.id}`} className="text-blue-400 hover:underline font-medium">
-                      {persona?.display_name || account.name}
-                    </a>
-                  </td>
-                  <td className="p-3 text-gray-400">{persona?.genre || "-"}</td>
-                  <td className="p-3 text-center">
-                    <StatusBadge status={account.status} />
-                  </td>
-                  <td className="p-3 text-center">
-                    {posts ? `${posts.published}/${posts.total}` : "-"}
-                  </td>
-                  <td className="p-3 text-center">
-                    <PipelineBadge status={pipeline} />
-                  </td>
-                </tr>
-              );
-            })}
-            {(!accounts || accounts.length === 0) && (
-              <tr>
-                <td colSpan={5} className="p-8 text-center text-gray-500">
-                  アカウントがまだありません。
-                  <a href="/accounts/new" className="text-blue-400 hover:underline ml-1">
-                    追加する
-                  </a>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Alerts */}
-      {alerts && alerts.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold">未解決アラート</h2>
-          {alerts.map((alert) => (
-            <div
-              key={alert.id}
-              className={`p-3 rounded-lg border text-sm ${
-                alert.severity === "critical"
-                  ? "bg-red-950 border-red-800 text-red-200"
-                  : alert.severity === "warning"
-                  ? "bg-yellow-950 border-yellow-800 text-yellow-200"
-                  : "bg-blue-950 border-blue-800 text-blue-200"
-              }`}
-            >
-              {alert.message}
-            </div>
-          ))}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <AlertStack alerts={(alerts ?? []) as AlertItem[]} />
         </div>
-      )}
+        <QuickLinks />
+      </div>
     </div>
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-  variant = "default",
-}: {
-  label: string;
-  value: string;
-  variant?: "default" | "warning";
-}) {
+function mapPhase(status: string): PhaseCellState {
+  switch (status) {
+    case "completed":
+      return "done";
+    case "processing":
+      return "running";
+    case "failed":
+      return "error";
+    case "pending":
+      return "waiting";
+    default:
+      return "idle";
+  }
+}
+
+function QuickLinks() {
+  const links = [
+    { href: "/accounts/new", label: "新規アカウント追加", desc: "Threads認証から開始" },
+    { href: "/pipeline", label: "パイプライン詳細", desc: "フェーズごとの実行状況" },
+    { href: "/settings", label: "システム設定", desc: "通知・手動トリガー" },
+  ];
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-      <p className="text-gray-400 text-xs">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${variant === "warning" ? "text-yellow-400" : "text-white"}`}>
-        {value}
-      </p>
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="border-b border-border px-5 py-4">
+        <h2 className="text-base font-semibold">クイックアクセス</h2>
+      </div>
+      <ul className="divide-y divide-border">
+        {links.map((l) => (
+          <li key={l.href}>
+            <a
+              href={l.href}
+              className="flex flex-col px-5 py-3.5 hover:bg-muted/40 transition-colors"
+            >
+              <span className="text-sm font-medium">{l.label}</span>
+              <span className="text-xs text-muted-foreground mt-0.5">{l.desc}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
     </div>
   );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    active: "bg-green-900 text-green-300",
-    testing: "bg-yellow-900 text-yellow-300",
-    setup: "bg-gray-700 text-gray-300",
-    paused: "bg-red-900 text-red-300",
-  };
-  return (
-    <span className={`px-2 py-0.5 rounded-full text-xs ${styles[status] || styles.setup}`}>
-      {status}
-    </span>
-  );
-}
-
-function PipelineBadge({ status }: { status: string | undefined }) {
-  if (!status) return <span className="text-gray-500 text-xs">-</span>;
-  const styles: Record<string, string> = {
-    done: "text-green-400",
-    running: "text-blue-400",
-    waiting: "text-gray-400",
-    error: "text-red-400",
-  };
-  const labels: Record<string, string> = {
-    done: "完了",
-    running: "実行中",
-    waiting: "待機",
-    error: "エラー",
-  };
-  return <span className={`text-xs ${styles[status]}`}>{labels[status]}</span>;
 }

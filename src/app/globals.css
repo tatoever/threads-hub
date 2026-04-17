@@ -1,26 +1,205 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+ * Design Tokens — Light (default)
+ * ============================================================ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: 0 0% 100%;
+  --foreground: 220 14% 12%;
+
+  --surface: 0 0% 100%;
+  --surface-subtle: 220 14% 97%;
+  --surface-hover: 220 14% 94%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 220 14% 12%;
+
+  --border: 220 13% 90%;
+  --border-strong: 220 13% 80%;
+
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
+
+  --primary: 238 84% 60%;
+  --primary-foreground: 0 0% 100%;
+  --primary-muted: 238 92% 96%;
+
+  --accent: 220 14% 96%;
+  --accent-foreground: 220 14% 12%;
+
+  --success: 142 71% 38%;
+  --success-foreground: 0 0% 100%;
+  --success-muted: 142 71% 94%;
+
+  --warning: 38 92% 50%;
+  --warning-foreground: 30 20% 10%;
+  --warning-muted: 45 93% 94%;
+
+  --danger: 0 72% 50%;
+  --danger-foreground: 0 0% 100%;
+  --danger-muted: 0 86% 96%;
+
+  --info: 217 91% 60%;
+  --info-foreground: 0 0% 100%;
+  --info-muted: 214 95% 95%;
+
+  --ring: 238 84% 60%;
+
+  --radius: 0.625rem;
 }
 
+/* ============================================================
+ * Design Tokens — Dark
+ * ============================================================ */
+.dark {
+  --background: 224 19% 7%;
+  --foreground: 220 14% 96%;
+
+  --surface: 224 18% 9%;
+  --surface-subtle: 224 16% 11%;
+  --surface-hover: 224 14% 14%;
+
+  --card: 224 18% 9%;
+  --card-foreground: 220 14% 96%;
+
+  --border: 224 14% 18%;
+  --border-strong: 224 12% 26%;
+
+  --muted: 224 14% 14%;
+  --muted-foreground: 220 9% 62%;
+
+  --primary: 238 92% 70%;
+  --primary-foreground: 224 19% 7%;
+  --primary-muted: 238 40% 18%;
+
+  --accent: 224 14% 16%;
+  --accent-foreground: 220 14% 96%;
+
+  --success: 142 66% 52%;
+  --success-foreground: 142 80% 6%;
+  --success-muted: 142 50% 14%;
+
+  --warning: 45 93% 60%;
+  --warning-foreground: 30 50% 8%;
+  --warning-muted: 38 50% 16%;
+
+  --danger: 0 82% 62%;
+  --danger-foreground: 0 0% 100%;
+  --danger-muted: 0 50% 16%;
+
+  --info: 217 91% 66%;
+  --info-foreground: 217 80% 6%;
+  --info-muted: 214 50% 16%;
+
+  --ring: 238 92% 70%;
+}
+
+/* ============================================================
+ * Theme — Tailwind v4 @theme
+ * ============================================================ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-surface: hsl(var(--surface));
+  --color-surface-subtle: hsl(var(--surface-subtle));
+  --color-surface-hover: hsl(var(--surface-hover));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-border: hsl(var(--border));
+  --color-border-strong: hsl(var(--border-strong));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-muted: hsl(var(--primary-muted));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-success-muted: hsl(var(--success-muted));
+
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-warning-muted: hsl(var(--warning-muted));
+
+  --color-danger: hsl(var(--danger));
+  --color-danger-foreground: hsl(var(--danger-foreground));
+  --color-danger-muted: hsl(var(--danger-muted));
+
+  --color-info: hsl(var(--info));
+  --color-info-foreground: hsl(var(--info-foreground));
+  --color-info-muted: hsl(var(--info-muted));
+
+  --color-ring: hsl(var(--ring));
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--font-geist-sans), "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ============================================================
+ * Base
+ * ============================================================ */
+* {
+  border-color: hsl(var(--border));
+}
+
+html,
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1, "palt" 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Avoid FOUC from next-themes */
+html:not(.dark):not(.light) {
+  visibility: hidden;
+}
+
+/* Smooth transition on theme toggle */
+html.dark,
+html.light {
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+/* Scrollbar — subtle */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 8px;
+  border: 2px solid hsl(var(--background));
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--border-strong));
+}
+
+/* Selection */
+::selection {
+  background: hsl(var(--primary) / 0.25);
+  color: hsl(var(--foreground));
 }

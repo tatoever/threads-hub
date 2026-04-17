@@ -1,5 +1,9 @@
-import Link from "next/link";
 import { requireAuth } from "@/lib/auth/session";
+import { createServiceClient } from "@/lib/supabase/client";
+import { Sidebar } from "@/components/shell/Sidebar";
+import { Header } from "@/components/shell/Header";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import type { AccountOption } from "@/components/shell/AccountSwitcher";
 
 export default async function DashboardLayout({
   children,
@@ -8,37 +12,35 @@ export default async function DashboardLayout({
 }) {
   await requireAuth();
 
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("accounts")
+    .select("id, name, slug, status, account_personas(display_name, genre)")
+    .order("created_at");
+
+  const accounts: AccountOption[] = (data ?? []).map((a: any) => {
+    const persona = Array.isArray(a.account_personas)
+      ? a.account_personas[0]
+      : a.account_personas;
+    return {
+      id: a.id,
+      name: a.name,
+      slug: a.slug,
+      status: a.status,
+      displayName: persona?.display_name ?? null,
+      genre: persona?.genre ?? null,
+    };
+  });
+
   return (
-    <div className="min-h-screen flex">
-      {/* Sidebar */}
-      <aside className="w-56 bg-gray-900 border-r border-gray-800 flex flex-col">
-        <div className="p-4 border-b border-gray-800">
-          <Link href="/" className="text-lg font-bold text-white">
-            Threads Hub
-          </Link>
+    <TooltipProvider delayDuration={150}>
+      <div className="min-h-screen flex bg-background text-foreground">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Header accounts={accounts} />
+          <main className="flex-1 overflow-auto">{children}</main>
         </div>
-        <nav className="flex-1 p-3 space-y-1">
-          <NavItem href="/" label="ダッシュボード" />
-          <NavItem href="/accounts" label="アカウント" />
-          <NavItem href="/pipeline" label="パイプライン" />
-          <NavItem href="/alerts" label="アラート" />
-          <NavItem href="/settings" label="設定" />
-        </nav>
-      </aside>
-
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">{children}</main>
-    </div>
-  );
-}
-
-function NavItem({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="block px-3 py-2 rounded-md text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
-    >
-      {label}
-    </Link>
+      </div>
+    </TooltipProvider>
   );
 }
