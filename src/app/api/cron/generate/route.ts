@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createServiceClient();
-  const today = new Date().toISOString().split("T")[0];
+  // JST 基準の「今日」を使う（UTC だと pipeline と日付がずれて meeting plan が見つからない）
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split("T")[0];
   const now = new Date();
   const in60min = new Date(now.getTime() + 60 * 60 * 1000);
 

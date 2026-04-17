@@ -15,7 +15,8 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createServiceClient();
-  const today = new Date().toISOString().split("T")[0];
+  // JST 基準の「今日」を使う（UTC だと JST 05:00 cron 発火時点で前日扱いになる）
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split("T")[0];
 
   // Get all active accounts
   const { data: accounts } = await supabase
