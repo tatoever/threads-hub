@@ -8,6 +8,7 @@ import { runCommunity } from "./tasks/community";
 import { runMeeting } from "./tasks/meeting";
 import { runGenerate } from "./tasks/generate";
 import { runReply } from "./tasks/reply";
+import { runCommentDetect } from "./tasks/comment-detect";
 import { runPublish } from "./tasks/publish";
 import { runAnalytics } from "./tasks/analytics";
 import { runConceptResearch } from "./tasks/concept-research";
@@ -45,6 +46,8 @@ export async function executeTask(task: TaskData): Promise<Record<string, any>> 
       return runPublish(task);
     case "reply":
       return runReply(task);
+    case "comment_detect":
+      return runCommentDetect(task);
     case "analytics":
       return runAnalytics(task);
 

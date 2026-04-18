@@ -36,7 +36,17 @@ export async function GET(req: NextRequest) {
     });
     tasksCreated++;
 
-    // Enqueue reply task
+    // Enqueue comment_detect task (inbound: fetch comments from Threads API)
+    await supabase.from("task_queue").insert({
+      account_id: account.id,
+      task_type: "comment_detect",
+      priority: 2,
+      payload: {},
+      model: "sonnet", // Not used, but column required
+    });
+    tasksCreated++;
+
+    // Enqueue reply task (AI generate + optional auto-send)
     await supabase.from("task_queue").insert({
       account_id: account.id,
       task_type: "reply",
