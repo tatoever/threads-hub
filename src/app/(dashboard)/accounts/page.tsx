@@ -132,11 +132,10 @@ function AccountCard({ account }: { account: Account }) {
             </p>
           )}
 
-          {/* Tags */}
-          {(persona?.genre || persona?.niche) && (
+          {/* Tags — ジャンルのみ表示 */}
+          {persona?.genre && (
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {persona?.genre && <Badge variant="outline">{persona.genre}</Badge>}
-              {persona?.niche && <Badge variant="secondary">{persona.niche}</Badge>}
+              <Badge variant="outline">{persona.genre}</Badge>
             </div>
           )}
         </div>
