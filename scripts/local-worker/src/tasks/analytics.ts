@@ -21,8 +21,12 @@ export async function runAnalytics(task: TaskData): Promise<Record<string, any>>
   }
 
   // 2. Get published posts from last 3 days that need analytics update
+  // Threads API の insights は publish 直後は未生成（24時間経過で取得可能になる）
+  // → published_at が 24h 前〜3日前のみを対象にして無駄な API 呼び出しを減らす
   const threeDaysAgo = new Date();
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  const twentyFourHoursAgo = new Date();
+  twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
   const { data: posts } = await supabase
     .from("posts")
@@ -31,6 +35,7 @@ export async function runAnalytics(task: TaskData): Promise<Record<string, any>>
     .eq("status", "published")
     .not("threads_post_id", "is", null)
     .gte("published_at", threeDaysAgo.toISOString())
+    .lte("published_at", twentyFourHoursAgo.toISOString())
     .limit(30);
 
   if (!posts || posts.length === 0) {
@@ -136,11 +141,16 @@ async function fetchPostInsights(
   accessToken: string
 ): Promise<{ views: number; likes: number; replies: number; reposts: number } | null> {
   try {
-    const res = await fetch(
-      `https://graph.threads.net/v1.0/${threadsPostId}/insights?metric=views,likes,replies,reposts&access_token=${accessToken}`
-    );
+    const url = `https://graph.threads.net/v1.0/${threadsPostId}/insights?metric=views,likes,replies,reposts&access_token=${accessToken}`;
+    const res = await fetch(url);
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "?");
+      console.warn(
+        `[analytics] insights fetch failed for post ${threadsPostId}: ${res.status} ${errBody.slice(0, 300)}`
+      );
+      return null;
+    }
 
     const data = await res.json();
     const metrics: Record<string, number> = {};
@@ -148,13 +158,18 @@ async function fetchPostInsights(
       metrics[entry.name] = entry.values?.[0]?.value ?? 0;
     }
 
+    console.log(
+      `[analytics] insights for ${threadsPostId}: views=${metrics.views ?? 0} likes=${metrics.likes ?? 0} replies=${metrics.replies ?? 0} reposts=${metrics.reposts ?? 0}`
+    );
+
     return {
       views: metrics.views ?? 0,
       likes: metrics.likes ?? 0,
       replies: metrics.replies ?? 0,
       reposts: metrics.reposts ?? 0,
     };
-  } catch {
+  } catch (err: any) {
+    console.warn(`[analytics] insights fetch exception for ${threadsPostId}: ${err?.message || err}`);
     return null;
   }
 }
