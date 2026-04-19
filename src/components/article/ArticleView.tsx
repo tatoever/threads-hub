@@ -8,7 +8,8 @@ export function ArticleView({ article }: { article: PublicArticleView }) {
     ? Math.ceil(article.reading_time_sec / 60)
     : null;
 
-  const threadsUrl = `https://www.threads.net/@${article.account.slug}`;
+  const threadsHandle = article.account.threads_username || article.account.slug;
+  const threadsUrl = `https://www.threads.net/@${threadsHandle}`;
   const displayName = article.account.display_name ?? article.account.name;
   const bio = article.account.profile_bio ?? article.account.background;
 
@@ -42,7 +43,7 @@ export function ArticleView({ article }: { article: PublicArticleView }) {
             />
             <span className="note-author-info">
               <span className="note-author-name">{displayName}</span>
-              <span className="note-author-genre">@{article.account.slug}</span>
+              <span className="note-author-genre">@{threadsHandle}</span>
             </span>
           </a>
           {readingMin && (
@@ -72,7 +73,7 @@ export function ArticleView({ article }: { article: PublicArticleView }) {
           />
           <div>
             <div className="note-author-card-name">{displayName}</div>
-            <div className="note-author-card-handle">@{article.account.slug} · Threadsで見る →</div>
+            <div className="note-author-card-handle">@{threadsHandle} · Threadsで見る →</div>
             {bio && <p className="note-author-card-bio">{bio}</p>}
           </div>
         </a>

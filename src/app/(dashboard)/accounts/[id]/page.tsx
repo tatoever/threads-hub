@@ -73,10 +73,20 @@ export default async function AccountDetailPage({
               <StatusDot tone={statusToTone(account.status)} className="size-3" />
               {displayName}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              @{account.slug}
-              {persona?.genre ? ` · ${persona.genre}` : ""}
-              {persona?.niche ? ` · ${persona.niche}` : ""}
+            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
+              <span>@{account.threads_username || account.slug}</span>
+              {persona?.genre ? <span>· {persona.genre}</span> : null}
+              {persona?.niche ? <span>· {persona.niche}</span> : null}
+              <a
+                href={`https://www.threads.net/@${account.threads_username || account.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Threadsで開く"
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border-strong transition-colors"
+              >
+                <ExternalLink className="size-3" />
+                Threadsで見る
+              </a>
             </p>
             {account.profile_bio && (
               <p className="mt-3 text-sm text-foreground/80 whitespace-pre-wrap max-w-[560px] leading-relaxed">

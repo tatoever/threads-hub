@@ -12,9 +12,10 @@ export async function getPublicArticle(
 ): Promise<PublicArticleView | null> {
   const supabase = createServiceClient();
 
+  // SELECT * で accounts の既存カラムを取得（migration 009 未適用でも動くように）
   const { data: account } = await supabase
     .from("accounts")
-    .select("id, name, slug, profile_picture_url, profile_bio, account_personas(display_name, background, genre)")
+    .select("*, account_personas(display_name, background, genre)")
     .eq("slug", accountSlug)
     .maybeSingle();
 
@@ -48,6 +49,7 @@ export async function getPublicArticle(
       genre: persona?.genre ?? null,
       profile_picture_url: (account as any).profile_picture_url ?? null,
       profile_bio: (account as any).profile_bio ?? null,
+      threads_username: (account as any).threads_username ?? null,
     },
   };
 }

@@ -56,6 +56,7 @@ export interface PublicArticleView {
     genre: string | null;
     profile_picture_url: string | null;
     profile_bio: string | null;
+    threads_username: string | null;
   };
 }
 

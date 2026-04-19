@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, ArrowRight, Sparkles, Send, KeyRound, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ interface Account {
   default_model: string;
   profile_picture_url: string | null;
   profile_bio: string | null;
+  threads_username: string | null;
   account_personas: any;
   account_tokens: any;
 }
@@ -84,6 +86,7 @@ export default function AccountsPage() {
 }
 
 function AccountCard({ account }: { account: Account }) {
+  const router = useRouter();
   const persona = Array.isArray(account.account_personas)
     ? account.account_personas[0]
     : account.account_personas;
@@ -94,20 +97,25 @@ function AccountCard({ account }: { account: Account }) {
   const displayName = persona?.display_name || account.name;
   const bio = account.profile_bio || persona?.background || null;
   const apiActive = token?.status === "active";
-  const threadsUrl = `https://www.threads.net/@${account.slug}`;
+  const threadsHandle = account.threads_username || account.slug;
+  const threadsUrl = `https://www.threads.net/@${threadsHandle}`;
 
   return (
-    <div className="group relative">
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(`/accounts/${account.id}`)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          router.push(`/accounts/${account.id}`);
+        }
+      }}
+      className="group cursor-pointer"
+    >
       <Card className="h-full overflow-hidden transition-all hover:border-border-strong hover:shadow-md">
-        {/* カード全体をクリック可能にする透明オーバーレイ（Threadsボタンはこの上に乗せる） */}
-        <Link
-          href={`/accounts/${account.id}`}
-          aria-label={`${displayName} の詳細`}
-          className="absolute inset-0 z-10"
-        />
-
         {/* Header: name left / avatar right */}
-        <div className="p-5 pb-4 relative z-0">
+        <div className="p-5 pb-4">
           <div className="flex items-start gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
@@ -117,7 +125,7 @@ function AccountCard({ account }: { account: Account }) {
                 </h2>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                @{account.slug}
+                @{threadsHandle}
               </p>
             </div>
             <Avatar
@@ -148,8 +156,8 @@ function AccountCard({ account }: { account: Account }) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              title={`Threadsで @${account.slug} を開く`}
-              className="relative z-20 inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border-strong transition-colors"
+              title={`Threadsで @${threadsHandle} を開く`}
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border-strong transition-colors"
             >
               <ExternalLink className="size-3" />
               Threads

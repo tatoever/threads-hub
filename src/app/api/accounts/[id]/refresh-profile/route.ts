@@ -53,10 +53,11 @@ export async function POST(
       .update({
         profile_picture_url: profile.threads_profile_picture_url ?? null,
         profile_bio: profile.threads_biography ?? null,
+        threads_username: profile.username ?? null,
         profile_synced_at: new Date().toISOString(),
       })
       .eq("id", id)
-      .select("id, profile_picture_url, profile_bio, profile_synced_at")
+      .select("id, profile_picture_url, profile_bio, threads_username, profile_synced_at")
       .single();
 
     if (updErr) {
