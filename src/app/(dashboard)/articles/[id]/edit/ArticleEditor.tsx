@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MarkdownEditor } from "@/components/article/MarkdownEditor";
+import { TiptapEditor } from "@/components/article/TiptapEditor";
 import { upsertArticle, transitionArticleStatus, deleteArticle } from "../../actions";
 import type { Article, ArticleStatus } from "@/lib/articles/types";
 import { isValidSlug } from "@/lib/articles/types";
@@ -205,13 +205,12 @@ export function ArticleEditor({
           />
         </Field>
 
-        <Field label="本文（Markdown）" required>
-          <MarkdownEditor
+        <Field label="本文" required>
+          <TiptapEditor
             value={bodyMd}
             onChange={setBodyMd}
             accountId={article.account_id}
             articleId={article.id}
-            height={700}
           />
         </Field>
 

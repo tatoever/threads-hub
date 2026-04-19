@@ -232,3 +232,193 @@ textarea.input-base {
   font-family: inherit;
 }
 
+
+/* ============================================================
+ * Tiptap Article Editor
+ * ============================================================ */
+.note-editor-shell {
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+  background: hsl(var(--surface));
+}
+
+.note-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--surface-subtle));
+  flex-wrap: wrap;
+}
+
+.note-editor-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.note-editor-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: hsl(var(--border));
+  margin: 0 4px;
+}
+
+.note-editor-toolbar-spacer {
+  flex: 1;
+}
+
+.note-editor-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 8px;
+  min-width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 80ms ease, color 80ms ease;
+}
+.note-editor-btn:hover:not(:disabled) {
+  background: hsl(var(--muted));
+}
+.note-editor-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.note-editor-btn.is-active {
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
+
+.note-editor-body {
+  background: #ffffff;
+  color: #0f172a;
+  min-height: 500px;
+}
+
+.note-editor-content {
+  padding: 48px 40px 80px;
+  outline: none;
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+  min-height: 500px;
+}
+@media (min-width: 640px) {
+  .note-editor-content {
+    padding: 56px 72px 96px;
+    font-size: 17px;
+  }
+}
+
+.note-editor-content p { margin: 0 0 2em; }
+.note-editor-content h2 {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.5;
+  margin: 72px 0 24px;
+  padding-top: 4px;
+  color: #0f172a;
+}
+.note-editor-content h3 {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.5;
+  margin: 48px 0 18px;
+  color: #0f172a;
+}
+.note-editor-content ul,
+.note-editor-content ol {
+  margin: 0 0 2em;
+  padding-left: 1.6em;
+}
+.note-editor-content li { margin-bottom: 0.5em; }
+.note-editor-content blockquote {
+  margin: 0 0 2em;
+  padding: 0 0 0 16px;
+  border-left: 3px solid #94a3b8;
+  color: #64748b;
+}
+.note-editor-content a {
+  color: #1f6feb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.note-editor-content strong { font-weight: 700; }
+.note-editor-content em { font-style: italic; }
+.note-editor-content img {
+  max-width: 100%;
+  height: auto;
+  margin: 32px 0;
+  border-radius: 4px;
+}
+.note-editor-content code {
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+}
+.note-editor-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.note-editor-preview {
+  padding: 48px 40px 80px;
+  background: #ffffff;
+  min-height: 500px;
+}
+@media (min-width: 640px) {
+  .note-editor-preview {
+    padding: 56px 72px 96px;
+  }
+}
+.note-editor-preview .note-prose {
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+  color: #0f172a;
+}
+@media (min-width: 640px) {
+  .note-editor-preview .note-prose {
+    font-size: 17px;
+  }
+}
+.note-editor-preview .note-prose p { margin: 0 0 2em; }
+.note-editor-preview .note-prose h2 {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.5;
+  margin: 72px 0 24px;
+}
+.note-editor-preview .note-prose h3 {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 48px 0 18px;
+}
+.note-editor-preview .note-prose strong { font-weight: 700; }
+.note-editor-preview .note-prose a {
+  color: #1f6feb;
+  text-decoration: underline;
+}
+.note-editor-preview .note-prose blockquote {
+  margin: 0 0 2em;
+  padding: 0 0 0 16px;
+  border-left: 3px solid #94a3b8;
+  color: #64748b;
+}
+.note-editor-preview .note-prose ul,
+.note-editor-preview .note-prose ol { margin: 0 0 2em; padding-left: 1.6em; }
+.note-editor-preview .note-prose img { max-width: 100%; height: auto; margin: 32px 0; border-radius: 4px; }
