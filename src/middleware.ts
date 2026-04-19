@@ -77,6 +77,12 @@ export function middleware(req: NextRequest) {
     return NextResponse.rewrite(new URL("/_not-found", req.url));
   }
 
+  // 管理ドメインでの公開記事URL（2セグメント）は note-sub.top へ 301 リダイレクト
+  // 誤って管理URLが外部に出ないようにする
+  if (isPublicArticlePath(pathname)) {
+    return NextResponse.redirect(`https://${PUBLIC_DOMAIN}${pathname}`, 301);
+  }
+
   // 管理ドメイン側の処理
   if (ADMIN_PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return NextResponse.next();

@@ -14,7 +14,7 @@ export async function getPublicArticle(
 
   const { data: account } = await supabase
     .from("accounts")
-    .select("id, name, slug, account_personas(display_name, background, genre)")
+    .select("id, name, slug, profile_picture_url, profile_bio, account_personas(display_name, background, genre)")
     .eq("slug", accountSlug)
     .maybeSingle();
 
@@ -46,6 +46,8 @@ export async function getPublicArticle(
       display_name: persona?.display_name ?? null,
       background: persona?.background ?? null,
       genre: persona?.genre ?? null,
+      profile_picture_url: (account as any).profile_picture_url ?? null,
+      profile_bio: (account as any).profile_bio ?? null,
     },
   };
 }

@@ -1,20 +1,16 @@
-import Link from "next/link";
 import { ArticleBody } from "./ArticleBody";
 import type { PublicArticleView } from "@/lib/articles/types";
 import { ReadingProgress } from "./ReadingProgress";
 import { ArticleTracker } from "./ArticleTracker";
 
 export function ArticleView({ article }: { article: PublicArticleView }) {
-  const publishedDate = article.published_at
-    ? new Date(article.published_at).toLocaleDateString("ja-JP", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
   const readingMin = article.reading_time_sec
     ? Math.ceil(article.reading_time_sec / 60)
     : null;
+
+  const threadsUrl = `https://www.threads.net/@${article.account.slug}`;
+  const displayName = article.account.display_name ?? article.account.name;
+  const bio = article.account.profile_bio ?? article.account.background;
 
   return (
     <article className="note-article">
@@ -33,23 +29,27 @@ export function ArticleView({ article }: { article: PublicArticleView }) {
         {article.subtitle && <p className="note-subtitle">{article.subtitle}</p>}
 
         <div className="note-meta">
-          <Link href={`/${article.account.slug}`} className="note-author">
-            <span className="note-author-avatar" aria-hidden>
-              {(article.account.display_name ?? article.account.name).slice(0, 1)}
-            </span>
+          <a
+            href={threadsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="note-author"
+          >
+            <AccountAvatar
+              src={article.account.profile_picture_url}
+              name={displayName}
+              className="note-author-avatar"
+            />
             <span className="note-author-info">
-              <span className="note-author-name">
-                {article.account.display_name ?? article.account.name}
-              </span>
-              {article.account.genre && (
-                <span className="note-author-genre">{article.account.genre}</span>
-              )}
+              <span className="note-author-name">{displayName}</span>
+              <span className="note-author-genre">@{article.account.slug}</span>
             </span>
-          </Link>
-          <div className="note-meta-right">
-            {publishedDate && <span className="note-date">{publishedDate}</span>}
-            {readingMin && <span className="note-reading">{readingMin}分で読めます</span>}
-          </div>
+          </a>
+          {readingMin && (
+            <div className="note-meta-right">
+              <span className="note-reading">{readingMin}分で読めます</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -58,20 +58,47 @@ export function ArticleView({ article }: { article: PublicArticleView }) {
       </div>
 
       <footer className="note-footer">
-        {article.account.background && (
-          <div className="note-author-card">
-            <div className="note-author-card-avatar" aria-hidden>
-              {(article.account.display_name ?? article.account.name).slice(0, 1)}
-            </div>
-            <div>
-              <div className="note-author-card-name">
-                {article.account.display_name ?? article.account.name}
-              </div>
-              <p className="note-author-card-bio">{article.account.background}</p>
-            </div>
+        <a
+          href={threadsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="note-author-card"
+        >
+          <AccountAvatar
+            src={article.account.profile_picture_url}
+            name={displayName}
+            className="note-author-card-avatar"
+            large
+          />
+          <div>
+            <div className="note-author-card-name">{displayName}</div>
+            <div className="note-author-card-handle">@{article.account.slug} · Threadsで見る →</div>
+            {bio && <p className="note-author-card-bio">{bio}</p>}
           </div>
-        )}
+        </a>
       </footer>
     </article>
+  );
+}
+
+function AccountAvatar({
+  src,
+  name,
+  className,
+  large,
+}: {
+  src: string | null;
+  name: string;
+  className: string;
+  large?: boolean;
+}) {
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt={name} className={`${className} note-avatar-img`} />;
+  }
+  return (
+    <span className={className} aria-hidden>
+      {name.slice(0, 1)}
+    </span>
   );
 }

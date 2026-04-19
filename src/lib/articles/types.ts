@@ -54,6 +54,8 @@ export interface PublicArticleView {
     display_name: string | null;
     background: string | null;
     genre: string | null;
+    profile_picture_url: string | null;
+    profile_bio: string | null;
   };
 }
 
