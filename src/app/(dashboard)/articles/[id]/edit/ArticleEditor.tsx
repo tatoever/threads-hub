@@ -118,7 +118,7 @@ export function ArticleEditor({
             </Button>
           </Link>
           <Button onClick={save} disabled={saving} variant="outline" size="sm">
-            <Save className="size-3.5" /> 下書き保存
+            <Save className="size-3.5" /> {status === "published" ? "上書き保存" : "下書き保存"}
           </Button>
           {(status === "draft" || status === "pending_review") && (
             <Button onClick={() => transition("published")} disabled={saving || !slugValid || !title} size="sm">

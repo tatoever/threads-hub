@@ -422,3 +422,9 @@ textarea.input-base {
 .note-editor-preview .note-prose ul,
 .note-editor-preview .note-prose ol { margin: 0 0 2em; padding-left: 1.6em; }
 .note-editor-preview .note-prose img { max-width: 100%; height: auto; margin: 32px 0; border-radius: 4px; }
+
+/* Tiptap エディタ / プレビュー内の <hr> も非表示（Markdown の --- は見せない） */
+.note-editor-content hr,
+.note-editor-preview .note-prose hr {
+  display: none;
+}

@@ -235,10 +235,10 @@
   background: #f8fafc;
 }
 
+/* 本文内の <hr>（Markdown の ---）は非表示。
+   タイトル・サブタイトル前後の仕切りは .note-meta の border で別途表現する */
 .note-prose hr {
-  border: none;
-  border-top: 1px solid var(--note-border);
-  margin: 48px 0;
+  display: none;
 }
 
 /* Footer / author card */

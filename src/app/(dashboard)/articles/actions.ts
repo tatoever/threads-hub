@@ -57,7 +57,7 @@ export async function upsertArticle(input: UpsertArticleInput): Promise<{ id: st
     // 既存記事の編集履歴を先に保存（更新前の状態）
     const { data: existing } = await supabase
       .from("articles")
-      .select("id, title, body_md, version")
+      .select("id, title, body_md, version, status, slug, accounts(slug)")
       .eq("id", input.id)
       .maybeSingle();
 
@@ -70,11 +70,34 @@ export async function upsertArticle(input: UpsertArticleInput): Promise<{ id: st
         saved_by: "admin",
       });
 
+      // 公開済み記事の上書き保存時: A8等の裸URLを /go/{slug} に自動置換
+      let finalBody = payload.body_md;
+      if (existing.status === "published" || existing.status === "pending_review") {
+        finalBody = await replaceAffiliateUrlsInMarkdown({
+          markdown: payload.body_md,
+          accountId: input.account_id,
+          articleId: existing.id,
+        });
+      }
+
       const { error } = await supabase
         .from("articles")
-        .update({ ...payload, version: existing.version + 1 })
+        .update({ ...payload, body_md: finalBody, version: existing.version + 1 })
         .eq("id", input.id);
       if (error) throw new Error(error.message);
+
+      // 公開中の場合は ISR も即時 revalidate
+      if (existing.status === "published") {
+        const accSlug = Array.isArray((existing as any).accounts)
+          ? (existing as any).accounts[0]?.slug
+          : (existing as any).accounts?.slug;
+        if (accSlug) {
+          revalidatePath(`/${accSlug}/${existing.slug}`);
+        }
+        revalidatePath("/sitemap.xml");
+      }
+      revalidatePath("/articles");
+
       return { id: input.id };
     }
   }
