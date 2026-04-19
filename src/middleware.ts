@@ -26,6 +26,7 @@ const NOTE_ALLOWED_PREFIX = [
   "/robots.txt",
   "/favicon",
   "/_next",
+  "/go/", // A8 等アフィリの短縮URLリダイレクタ
 ];
 
 // 公開ドメイン（note-sub.top）で明確に不許可にするパス
@@ -58,6 +59,7 @@ const ADMIN_FIRST_SEGMENTS = new Set([
   "login",
   "api",
   "_next",
+  "go", // 短縮URLリダイレクタ
 ]);
 
 function isPublicArticlePath(pathname: string): boolean {

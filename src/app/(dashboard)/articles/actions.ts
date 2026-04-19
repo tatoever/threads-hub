@@ -10,6 +10,7 @@ import {
   estimateReadingTimeSec,
   type ArticleStatus,
 } from "@/lib/articles/types";
+import { replaceAffiliateUrlsInMarkdown } from "@/lib/short-links";
 
 export interface UpsertArticleInput {
   id?: string;
@@ -91,6 +92,58 @@ export async function transitionArticleStatus(id: string, nextStatus: ArticleSta
   await requireAuth();
   const supabase = createServiceClient();
 
+  // 公開時: A8等のURLを短縮URLに置換、cta_destinations を自動作成
+  if (nextStatus === "published") {
+    const { data: current } = await supabase
+      .from("articles")
+      .select("id, account_id, slug, title, body_md, accounts(slug)")
+      .eq("id", id)
+      .maybeSingle();
+    if (current) {
+      const accSlug = Array.isArray((current as any).accounts)
+        ? (current as any).accounts[0]?.slug
+        : (current as any).accounts?.slug;
+
+      // A8 等の裸URLを /go/{slug} にラップ
+      const rewrittenBody = await replaceAffiliateUrlsInMarkdown({
+        markdown: current.body_md ?? "",
+        accountId: current.account_id,
+        articleId: current.id,
+      });
+      if (rewrittenBody !== (current.body_md ?? "")) {
+        await supabase.from("articles").update({ body_md: rewrittenBody }).eq("id", id);
+      }
+
+      // cta_destinations に internal_article 行を upsert
+      if (accSlug) {
+        const publicUrl = `https://note-sub.top/${accSlug}/${current.slug}`;
+        const { data: existing } = await supabase
+          .from("cta_destinations")
+          .select("id")
+          .eq("account_id", current.account_id)
+          .eq("article_id", id)
+          .maybeSingle();
+        if (existing?.id) {
+          await supabase
+            .from("cta_destinations")
+            .update({ url: publicUrl, name: current.title, is_active: true })
+            .eq("id", existing.id);
+        } else {
+          await supabase.from("cta_destinations").insert({
+            account_id: current.account_id,
+            article_id: id,
+            cta_type: "internal_article",
+            name: current.title,
+            url: publicUrl,
+            description: `内製CMS記事: ${current.title}`,
+            is_active: true,
+            priority: 5,
+          });
+        }
+      }
+    }
+  }
+
   const update: Record<string, unknown> = {
     status: nextStatus,
     updated_at: new Date().toISOString(),
@@ -106,6 +159,14 @@ export async function transitionArticleStatus(id: string, nextStatus: ArticleSta
 
   const { error } = await supabase.from("articles").update(update).eq("id", id);
   if (error) throw new Error(error.message);
+
+  // アーカイブ・下書き戻しの場合、紐付いた cta_destinations を非活性化
+  if (nextStatus === "archived" || nextStatus === "draft") {
+    await supabase
+      .from("cta_destinations")
+      .update({ is_active: false })
+      .eq("article_id", id);
+  }
 
   revalidatePath("/articles");
   // 公開ページの ISR も更新
