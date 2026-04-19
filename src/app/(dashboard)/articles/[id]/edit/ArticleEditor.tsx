@@ -9,7 +9,7 @@ import { MarkdownEditor } from "@/components/article/MarkdownEditor";
 import { upsertArticle, transitionArticleStatus, deleteArticle } from "../../actions";
 import type { Article, ArticleStatus } from "@/lib/articles/types";
 import { isValidSlug } from "@/lib/articles/types";
-import { Save, Send, Undo2, CheckCircle, Archive, ExternalLink, Trash2 } from "lucide-react";
+import { Save, Undo2, CheckCircle, Archive, ExternalLink, Trash2 } from "lucide-react";
 
 interface AccountOpt {
   id: string;
@@ -19,7 +19,7 @@ interface AccountOpt {
 
 const STATUS_LABEL: Record<ArticleStatus, { label: string; variant: "secondary" | "warning" | "info" | "success" }> = {
   draft: { label: "下書き", variant: "secondary" },
-  pending_review: { label: "レビュー待ち", variant: "warning" },
+  pending_review: { label: "下書き", variant: "secondary" }, // 旧状態の救済: 同等表示
   published: { label: "公開中", variant: "success" },
   archived: { label: "アーカイブ", variant: "secondary" },
 };
@@ -115,27 +115,10 @@ export function ArticleEditor({
           <Button onClick={save} disabled={saving} variant="outline" size="sm">
             <Save className="size-3.5" /> 下書き保存
           </Button>
-          {status === "draft" && (
-            <Button onClick={() => transition("pending_review")} disabled={saving || !slugValid || !title} size="sm">
-              <Send className="size-3.5" /> レビュー依頼
+          {(status === "draft" || status === "pending_review") && (
+            <Button onClick={() => transition("published")} disabled={saving || !slugValid || !title} size="sm">
+              <CheckCircle className="size-3.5" /> 公開する
             </Button>
-          )}
-          {status === "pending_review" && (
-            <>
-              <Button
-                onClick={() => {
-                  const notes = prompt("差し戻しコメント（任意）");
-                  if (notes !== null) transition("draft", notes);
-                }}
-                variant="outline"
-                size="sm"
-              >
-                <Undo2 className="size-3.5" /> 下書きに戻す
-              </Button>
-              <Button onClick={() => transition("published")} disabled={saving} size="sm">
-                <CheckCircle className="size-3.5" /> 公開
-              </Button>
-            </>
           )}
           {status === "published" && (
             <>

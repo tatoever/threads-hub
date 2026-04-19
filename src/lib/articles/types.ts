@@ -88,3 +88,17 @@ export function assertValidSlug(slug: string): void {
     );
   }
 }
+
+/**
+ * note.com 風のランダム slug を生成する。
+ * 形式: n + [a-z0-9]{12} (例: n1a734e59e205)
+ * SEO目的ではなく識別子として使う
+ */
+export function generateRandomSlug(): string {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "n";
+  for (let i = 0; i < 12; i++) {
+    result += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return result;
+}

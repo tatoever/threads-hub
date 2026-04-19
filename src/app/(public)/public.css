@@ -142,21 +142,21 @@
 }
 
 .note-prose p {
-  margin: 0 0 1.6em;
+  margin: 0 0 2em;
 }
 
 .note-prose h2 {
   font-size: 22px;
   font-weight: 700;
   line-height: 1.5;
-  margin: 56px 0 20px;
+  margin: 72px 0 24px;
   padding-top: 4px;
 }
 .note-prose h3 {
   font-size: 19px;
   font-weight: 700;
   line-height: 1.5;
-  margin: 40px 0 16px;
+  margin: 48px 0 18px;
 }
 
 .note-prose ul,

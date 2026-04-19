@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { upsertArticle } from "../actions";
-import { isValidSlug } from "@/lib/articles/types";
+import { generateRandomSlug } from "@/lib/articles/types";
 
 export function NewArticleForm({
   accounts,
@@ -14,7 +14,6 @@ export function NewArticleForm({
   const router = useRouter();
   const [accountId, setAccountId] = React.useState(accounts[0]?.id ?? "");
   const [title, setTitle] = React.useState("");
-  const [slug, setSlug] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
 
@@ -23,12 +22,10 @@ export function NewArticleForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!isValidSlug(slug)) {
-      setError("slug は英数小文字・ハイフン・アンダーバーのみ（1-100文字）");
-      return;
-    }
     setSaving(true);
     try {
+      // slug は自動生成（note.com 風 n + 12文字の英数字）
+      const slug = generateRandomSlug();
       const { id } = await upsertArticle({
         account_id: accountId,
         slug,
@@ -76,22 +73,9 @@ export function NewArticleForm({
         />
       </div>
 
-      <div>
-        <label className="text-sm font-medium block mb-1.5">
-          Slug（URL末尾）<span className="text-destructive">*</span>
-        </label>
-        <input
-          type="text"
-          value={slug}
-          onChange={(e) => setSlug(e.target.value.toLowerCase())}
-          className="input-base font-mono"
-          placeholder="article-slug"
-          required
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          公開URL: /<span className="text-foreground">{account?.slug ?? "account"}</span>/
-          <span className="text-foreground">{slug || "your-slug"}</span>
-        </p>
+      <div className="text-xs text-muted-foreground">
+        公開URLは自動生成されます（例:{" "}
+        <span className="font-mono">/{account?.slug ?? "account"}/n1a734e59e205</span>）
       </div>
 
       <Button type="submit" disabled={saving || !accountId}>
