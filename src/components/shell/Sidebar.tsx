@@ -11,6 +11,7 @@ import {
   Settings,
   Sparkles,
   FlaskConical,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -26,6 +27,7 @@ const NAV: NavEntry[] = [
   { href: "/accounts", label: "アカウント", icon: Users, matchPrefix: "/accounts" },
   { href: "/pipeline", label: "パイプライン", icon: Workflow },
   { href: "/buzz-templates", label: "バズ構文", icon: FlaskConical, matchPrefix: "/buzz-templates" },
+  { href: "/articles", label: "記事", icon: FileText, matchPrefix: "/articles" },
   { href: "/alerts", label: "アラート", icon: AlertTriangle },
   { href: "/settings", label: "設定", icon: Settings },
 ];

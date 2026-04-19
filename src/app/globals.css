@@ -203,3 +203,32 @@ html.light {
   background: hsl(var(--primary) / 0.25);
   color: hsl(var(--foreground));
 }
+
+/* ============================================================
+ * Form inputs (用 Articles / generic)
+ * ============================================================ */
+.input-base {
+  width: 100%;
+  padding: 8px 12px;
+  background: hsl(var(--surface));
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: hsl(var(--foreground));
+  outline: none;
+  transition: border-color 100ms ease, box-shadow 100ms ease;
+}
+.input-base:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
+}
+.input-base:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+textarea.input-base {
+  resize: vertical;
+  font-family: inherit;
+}
+
