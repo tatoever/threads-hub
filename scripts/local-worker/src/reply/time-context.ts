@@ -1,10 +1,13 @@
 /**
- * JST 時刻と時間帯ラベルを返す。userPrompt に埋め込む用途。
+ * JST 時刻と時間帯ラベル・曜日コンテキストを返す。userPrompt に埋め込む用途。
  */
+
+import { getJstDayContext, type DayContext } from "../utils/day-context";
 
 export interface TimeContext {
   nowJstIso: string;      // "2026-04-18 14:35"
   timeBand: string;       // "朝" | "昼" | "夕方" | "夜" | "深夜"
+  dayContext: DayContext; // 曜日・祝日・is_weekend 等
 }
 
 export function getJstTimeContext(now: Date = new Date()): TimeContext {
@@ -25,6 +28,7 @@ export function getJstTimeContext(now: Date = new Date()): TimeContext {
   return {
     nowJstIso: `${y}-${m}-${d} ${hh}:${mm}`,
     timeBand,
+    dayContext: getJstDayContext(`${y}-${m}-${d}`),
   };
 }
 

@@ -16,6 +16,10 @@ export interface QualityCheckOptions {
   firstPersonToken?: string;   // "俺" | "わたし" | "僕" 等
   firstPersonStrict?: boolean;
   accountProhibitedWords?: string[];
+  /** 本日が休日(土日+祝日) か平日か。true=休日、false=平日、undefined=判定スキップ */
+  isOffDay?: boolean;
+  /** 表示用の曜日ラベル（エラーメッセージに使用） */
+  dayOfWeekJa?: string;
 }
 
 export function checkReplyQuality(
@@ -172,7 +176,33 @@ export function checkReplyQuality(
     reasons.push(`命令形（〜してみ／やってみ／〜しな）が${commandCount}回。1回以下に抑えて、提案形（〜するといいよ／〜でいいと思う）に寄せる。`);
   }
 
-  // 18. 接続詞連打
+  // 18. 曜日ミスマッチ検知（JST 当日が休日 or 平日に対して不整合な語彙）
+  if (options.isOffDay === true) {
+    const weekdayOnlyPatterns = [
+      "保育園", "幼稚園", "小学校", "登校", "登園", "送り届",
+      "出勤", "退勤", "通勤", "職場", "会議", "ミーティング",
+      "月曜の朝", "月曜から", "火曜", "水曜", "木曜", "金曜",
+      "ランチタイム", "昼休み", "給湯室", "打ち合わせ",
+    ];
+    for (const w of weekdayOnlyPatterns) {
+      if (text.includes(w)) {
+        reasons.push(`本日(${options.dayOfWeekJa || "休日"})は休日だが、平日専用語彙「${w}」を使用。休日に整合する表現に書き換える。`);
+        break;
+      }
+    }
+  } else if (options.isOffDay === false) {
+    const weekendOnlyPatterns = [
+      "休日の朝", "週末気分", "今日は休み", "家で1日ゴロゴロ",
+    ];
+    for (const w of weekendOnlyPatterns) {
+      if (text.includes(w)) {
+        reasons.push(`本日は平日だが、休日専用語彙「${w}」を使用。平日に整合する表現に書き換える。`);
+        break;
+      }
+    }
+  }
+
+  // 19. 接続詞連打
   const connectors = ["さらに", "また", "加えて", "その上"];
   const connectorCount = connectors.reduce(
     (sum, c) => sum + (text.match(new RegExp(c, "g")) || []).length,

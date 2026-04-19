@@ -18,6 +18,7 @@ import type { TaskData } from "../task-executor";
 import { buildSystemPrompt, buildUserPrompt, type PersonaRow, type ReplyRules } from "../reply/build-prompt";
 import { checkReplyQuality, formatReasonsForRegen } from "../reply/quality-check";
 import { getRecentReplyOpenings } from "../reply/anti-repeat";
+import { getJstDayContext } from "../utils/day-context";
 
 const REPLY_MAX_PER_RUN = Number(process.env.REPLY_MAX_PER_RUN || 5);
 const MAX_REPLY_CHARS = 100;
@@ -100,12 +101,15 @@ export async function runReply(task: TaskData): Promise<Record<string, any>> {
       let replyText = sanitize(generated, MAX_REPLY_CHARS);
 
       // 品質チェック
+      const dayCtx = getJstDayContext();
       let check = checkReplyQuality(replyText, {
         maxChars: MAX_REPLY_CHARS,
         speechLevel: rules.speech_level,
         firstPersonToken: rules.first_person_when_used,
         firstPersonStrict: rules.first_person_strict,
         accountProhibitedWords: persona.prohibited_words || [],
+        isOffDay: dayCtx.isOffDay,
+        dayOfWeekJa: dayCtx.dayOfWeekJa,
       });
 
       // NGなら1回だけリジェネ
@@ -126,6 +130,8 @@ export async function runReply(task: TaskData): Promise<Record<string, any>> {
           firstPersonToken: rules.first_person_when_used,
           firstPersonStrict: rules.first_person_strict,
           accountProhibitedWords: persona.prohibited_words || [],
+          isOffDay: dayCtx.isOffDay,
+          dayOfWeekJa: dayCtx.dayOfWeekJa,
         });
         if (regenCheck.ok) {
           replyText = regenText;

@@ -8,6 +8,7 @@
 
 import { supabase } from "../utils/supabase";
 import { callClaudeJson, type ModelType } from "../utils/claude-cli";
+import { getJstDayContext, buildDayConstraintBlock } from "../utils/day-context";
 import type { TaskData } from "../task-executor";
 
 export async function runMeeting(task: TaskData): Promise<Record<string, any>> {
@@ -143,11 +144,15 @@ function buildMeetingPrompt(ctx: {
   date: string;
 }): string {
   const { persona, briefMap, postTarget, ctaDestinations, recentCtaPlacements, recentPosts, buzzTemplates, date } = ctx;
+  const dayCtx = getJstDayContext(date);
+  const dayConstraintBlock = buildDayConstraintBlock(dayCtx);
 
   return `# 本日のコンテンツ会議
 
 ## 日付
-${date}
+${date}（${dayCtx.dayOfWeekJa}${dayCtx.isHoliday ? ` 祝日: ${dayCtx.holidayName}` : ""}）
+
+${dayConstraintBlock}
 
 ## アカウント情報
 - ペルソナ: ${persona?.display_name || "未設定"}

@@ -15,6 +15,7 @@ import {
   COMMON_OUTPUT_RULE,
 } from "./common-base";
 import { getJstTimeContext, formatCommentReceivedTime } from "./time-context";
+import { buildDayConstraintBlock } from "../utils/day-context";
 
 export interface PersonaRow {
   display_name: string;
@@ -158,6 +159,7 @@ export interface UserPromptInput {
 
 export function buildUserPrompt(input: UserPromptInput): string {
   const time = getJstTimeContext();
+  const dayConstraintBlock = buildDayConstraintBlock(time.dayContext);
   const commentTime = formatCommentReceivedTime(input.commentCreatedAt);
   const postSnippet = (input.postContent || "（元投稿不明）").slice(0, 500);
   const author = input.commentAuthorUsername ? `@${input.commentAuthorUsername}` : "コメンター";
@@ -174,8 +176,10 @@ ${input.regenerationFeedback}`
     : "";
 
   return [
-    `【現在時刻】${time.nowJstIso}（時間帯: ${time.timeBand}）`,
+    `【現在時刻】${time.nowJstIso}（${time.dayContext.dayOfWeekJa}、時間帯: ${time.timeBand}）`,
     `【コメント受信時刻】${commentTime}`,
+    "",
+    dayConstraintBlock,
     "",
     `【元投稿（文脈として使用）】`,
     postSnippet,
