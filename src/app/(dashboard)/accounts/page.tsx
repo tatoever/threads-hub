@@ -99,20 +99,7 @@ function AccountCard({ account }: { account: Account }) {
   return (
     <div className="group relative">
       <Card className="h-full overflow-hidden transition-all hover:border-border-strong hover:shadow-md">
-        {/* Threads 直リンクボタン（新タブ、カード全体クリックと分離） */}
-        <a
-          href={threadsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          title={`Threadsで @${account.slug} を開く`}
-          className="absolute top-3 right-3 z-20 inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border-strong transition-colors"
-        >
-          <ExternalLink className="size-3" />
-          Threads
-        </a>
-
-        {/* カード全体をクリック可能にする透明オーバーレイ（Threadsボタンの下に敷く） */}
+        {/* カード全体をクリック可能にする透明オーバーレイ（Threadsボタンはこの上に乗せる） */}
         <Link
           href={`/accounts/${account.id}`}
           aria-label={`${displayName} の詳細`}
@@ -153,12 +140,21 @@ function AccountCard({ account }: { account: Account }) {
             </p>
           )}
 
-          {/* Tags — ジャンルのみ表示 */}
-          {persona?.genre && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              <Badge variant="outline">{persona.genre}</Badge>
-            </div>
-          )}
+          {/* Tags — ジャンル + Threads 直リンクボタン */}
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {persona?.genre && <Badge variant="outline">{persona.genre}</Badge>}
+            <a
+              href={threadsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              title={`Threadsで @${account.slug} を開く`}
+              className="relative z-20 inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border-strong transition-colors"
+            >
+              <ExternalLink className="size-3" />
+              Threads
+            </a>
+          </div>
         </div>
 
         {/* Footer stats */}
