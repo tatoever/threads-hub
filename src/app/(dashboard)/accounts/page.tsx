@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, ArrowRight, Sparkles, Send, KeyRound } from "lucide-react";
+import { Plus, ArrowRight, Sparkles, Send, KeyRound, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,12 +94,33 @@ function AccountCard({ account }: { account: Account }) {
   const displayName = persona?.display_name || account.name;
   const bio = account.profile_bio || persona?.background || null;
   const apiActive = token?.status === "active";
+  const threadsUrl = `https://www.threads.net/@${account.slug}`;
 
   return (
-    <Link href={`/accounts/${account.id}`} className="group">
+    <div className="group relative">
       <Card className="h-full overflow-hidden transition-all hover:border-border-strong hover:shadow-md">
+        {/* Threads 直リンクボタン（新タブ、カード全体クリックと分離） */}
+        <a
+          href={threadsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          title={`Threadsで @${account.slug} を開く`}
+          className="absolute top-3 right-3 z-20 inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border-strong transition-colors"
+        >
+          <ExternalLink className="size-3" />
+          Threads
+        </a>
+
+        {/* カード全体をクリック可能にする透明オーバーレイ（Threadsボタンの下に敷く） */}
+        <Link
+          href={`/accounts/${account.id}`}
+          aria-label={`${displayName} の詳細`}
+          className="absolute inset-0 z-10"
+        />
+
         {/* Header: name left / avatar right */}
-        <div className="p-5 pb-4">
+        <div className="p-5 pb-4 relative z-0">
           <div className="flex items-start gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
@@ -171,7 +192,7 @@ function AccountCard({ account }: { account: Account }) {
           </span>
         </div>
       </Card>
-    </Link>
+    </div>
   );
 }
 
