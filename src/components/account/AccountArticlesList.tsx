@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { FileText, Plus, Pencil, ExternalLink } from "lucide-react";
+import { FileText, Plus, Pencil, ExternalLink, BarChart3 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -167,6 +167,11 @@ function ArticleRow({
             <ExternalLink className="size-3.5" /> 公開ページ
           </a>
         )}
+        <Link href={`/articles/${article.id}/analytics`}>
+          <Button variant="outline" size="sm">
+            <BarChart3 className="size-3.5" /> 分析
+          </Button>
+        </Link>
         <Link href={`/articles/${article.id}/edit`}>
           <Button variant="outline" size="sm">
             <Pencil className="size-3.5" /> 編集

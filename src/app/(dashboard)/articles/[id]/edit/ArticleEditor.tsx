@@ -9,7 +9,7 @@ import { TiptapEditor } from "@/components/article/TiptapEditor";
 import { upsertArticle, transitionArticleStatus, deleteArticle } from "../../actions";
 import type { Article, ArticleStatus } from "@/lib/articles/types";
 import { isValidSlug } from "@/lib/articles/types";
-import { Save, Undo2, CheckCircle, Archive, ExternalLink, Trash2 } from "lucide-react";
+import { Save, Undo2, CheckCircle, Archive, ExternalLink, Trash2, BarChart3 } from "lucide-react";
 
 interface AccountOpt {
   id: string;
@@ -112,6 +112,11 @@ export function ArticleEditor({
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Link href={`/articles/${article.id}/analytics`}>
+            <Button variant="outline" size="sm">
+              <BarChart3 className="size-3.5" /> 分析
+            </Button>
+          </Link>
           <Button onClick={save} disabled={saving} variant="outline" size="sm">
             <Save className="size-3.5" /> 下書き保存
           </Button>
