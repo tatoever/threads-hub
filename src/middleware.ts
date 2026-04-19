@@ -46,11 +46,28 @@ const NOTE_DENY_PREFIX = [
   "/api/settings",
 ];
 
+// admin ドメインで「公開記事URL」として扱わない第1セグメント
+// これらは管理画面の通常ルート（/accounts/[id] 等）なのでリダイレクト対象外
+const ADMIN_FIRST_SEGMENTS = new Set([
+  "accounts",
+  "articles",
+  "pipeline",
+  "alerts",
+  "settings",
+  "buzz-templates",
+  "login",
+  "api",
+  "_next",
+]);
+
 function isPublicArticlePath(pathname: string): boolean {
   // "/{slug}/{slug}" の2セグメント構造（公開記事URL）
   const parts = pathname.replace(/^\/+/, "").split("/").filter(Boolean);
   if (parts.length !== 2) return false;
-  return /^[a-z0-9][a-z0-9_-]*$/.test(parts[0]) && /^[a-z0-9][a-z0-9_-]*$/.test(parts[1]);
+  if (ADMIN_FIRST_SEGMENTS.has(parts[0])) return false;
+  // 第2セグメントは "n" + 英数字の note 風 slug を想定（UUID 等の admin ルート回避）
+  if (!/^n[a-z0-9]{6,20}$/.test(parts[1]) && !/^[a-z0-9][a-z0-9_-]{2,}$/.test(parts[1])) return false;
+  return /^[a-z0-9][a-z0-9_-]*$/.test(parts[0]);
 }
 
 export function middleware(req: NextRequest) {
