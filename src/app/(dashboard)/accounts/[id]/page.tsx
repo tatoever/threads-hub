@@ -21,6 +21,7 @@ import { PostList } from "@/components/account/PostList";
 import { FollowerChart } from "@/components/account/FollowerChart";
 import { CommentPanel } from "@/components/account/CommentPanel";
 import { NoteFeed } from "@/components/account/NoteFeed";
+import { AccountArticlesList } from "@/components/account/AccountArticlesList";
 import { RefreshProfileButton } from "@/components/account/RefreshProfileButton";
 import { Avatar } from "@/components/ui/avatar";
 
@@ -237,7 +238,12 @@ export default async function AccountDetailPage({
               )}
             </SectionCard>
           ),
-          notes: <NoteFeed accountId={id} />,
+          notes: (
+            <div className="space-y-4">
+              <AccountArticlesList accountId={id} accountSlug={account.slug} />
+              <NoteFeed accountId={id} />
+            </div>
+          ),
           operations: (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
               <div className="xl:col-span-2">
