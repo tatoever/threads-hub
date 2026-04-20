@@ -15,7 +15,7 @@ export default function PrivacyPage() {
         <h2>1. 運営者</h2>
         <p>
           本サイト（note-sub.top、以下「当サイト」）は、個人運営者（以下「運営者」）によって運営されています。
-          運営者情報の詳細は、<a href="/legal/tokushoho">特定商取引法に基づく表記</a>をご確認ください。
+          運営者情報の詳細は、<a href="/legal/tokushoho">運営者情報</a>ページをご確認ください。
         </p>
       </section>
 
@@ -93,7 +93,7 @@ export default function PrivacyPage() {
         <p>
           当サイトが保有する利用者の個人情報について、開示・訂正・削除のご要望がある場合は、
           運営者までメールでご連絡ください（連絡先は
-          <a href="/legal/tokushoho">特定商取引法に基づく表記</a>に記載）。
+          <a href="/legal/tokushoho">運営者情報</a>に記載）。
           合理的な期間内に対応いたします。
         </p>
       </section>
@@ -110,7 +110,7 @@ export default function PrivacyPage() {
         <h2>9. お問い合わせ</h2>
         <p>
           本プライバシーポリシーに関するお問い合わせは、運営者までメールでお願いいたします（連絡先は
-          <a href="/legal/tokushoho">特定商取引法に基づく表記</a>に記載）。
+          <a href="/legal/tokushoho">運営者情報</a>に記載）。
         </p>
       </section>
     </article>

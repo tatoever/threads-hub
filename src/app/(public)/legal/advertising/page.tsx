@@ -68,7 +68,7 @@ export default function AdvertisingPage() {
         <h2>5. お問い合わせ</h2>
         <p>
           本サイトの広告表示に関するご意見・ご指摘は、運営者までメールでお願いいたします（連絡先は
-          <a href="/legal/tokushoho">特定商取引法に基づく表記</a>に記載）。
+          <a href="/legal/tokushoho">運営者情報</a>に記載）。
         </p>
       </section>
     </article>

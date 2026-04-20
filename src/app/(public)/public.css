@@ -484,3 +484,11 @@
   font-size: 11px;
   margin: 0;
 }
+
+.legal-sub {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--note-muted);
+  line-height: 1.6;
+}
