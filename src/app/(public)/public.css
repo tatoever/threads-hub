@@ -308,3 +308,179 @@
 .note-article[data-accent="calm"] .note-author-card-avatar {
   background: #1e3a8a; /* fukurou: navy */
 }
+
+/* ============================================================
+ * Legal pages (/legal/*)
+ * ============================================================ */
+.legal-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+  color: var(--note-fg);
+}
+
+.legal-header {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--note-border);
+  margin-bottom: 40px;
+}
+.legal-site-link {
+  font-size: 14px;
+  color: var(--note-muted);
+  text-decoration: none;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+.legal-site-link:hover { color: var(--note-fg); }
+
+.legal-main {
+  min-height: 60vh;
+}
+
+.legal-article h1 {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+.legal-updated {
+  font-size: 12px;
+  color: var(--note-muted);
+  margin-bottom: 32px;
+}
+.legal-note {
+  font-size: 13px;
+  color: var(--note-muted);
+  background: #f8fafc;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 24px;
+  line-height: 1.7;
+}
+.legal-article section {
+  margin-bottom: 36px;
+}
+.legal-article h2 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  padding-top: 8px;
+}
+.legal-article h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 20px 0 8px;
+}
+.legal-article p,
+.legal-article ul,
+.legal-article ol {
+  font-size: 14px;
+  line-height: 1.85;
+  margin: 0 0 14px;
+}
+.legal-article ul, .legal-article ol {
+  padding-left: 1.5em;
+}
+.legal-article li { margin-bottom: 4px; }
+.legal-article a {
+  color: var(--note-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.legal-article strong {
+  font-weight: 700;
+}
+
+.legal-code {
+  background: #f1f5f9;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 13px;
+  margin: 12px 0 18px;
+}
+
+.legal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+.legal-table th,
+.legal-table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--note-border);
+  vertical-align: top;
+  line-height: 1.7;
+}
+.legal-table th {
+  width: 30%;
+  background: #f8fafc;
+  font-weight: 600;
+  color: var(--note-fg);
+}
+@media (max-width: 600px) {
+  .legal-table, .legal-table tbody, .legal-table tr, .legal-table th, .legal-table td {
+    display: block;
+  }
+  .legal-table th {
+    width: auto;
+    border-bottom: none;
+    padding-bottom: 4px;
+    font-size: 12px;
+  }
+  .legal-table td {
+    padding-top: 0;
+    padding-bottom: 14px;
+  }
+}
+
+.legal-footer {
+  margin-top: 80px;
+  padding-top: 24px;
+  border-top: 1px solid var(--note-border);
+  color: var(--note-muted);
+  font-size: 12px;
+}
+.legal-footer-nav {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.legal-footer-nav a {
+  color: var(--note-muted);
+  text-decoration: none;
+}
+.legal-footer-nav a:hover { color: var(--note-fg); }
+.legal-copy {
+  font-size: 11px;
+  margin: 0;
+}
+
+/* ============================================================
+ * Public-page footer (記事ページ + ランディング共通)
+ * ============================================================ */
+.note-public-footer {
+  max-width: 760px;
+  margin: 80px auto 0;
+  padding: 32px 20px;
+  border-top: 1px solid var(--note-border);
+  color: var(--note-muted);
+  font-size: 12px;
+}
+.note-public-footer-nav {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.note-public-footer-nav a {
+  color: var(--note-muted);
+  text-decoration: none;
+}
+.note-public-footer-nav a:hover { color: var(--note-fg); }
+.note-public-footer-copy {
+  font-size: 11px;
+  margin: 0;
+}

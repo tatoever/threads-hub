@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArticleBody } from "./ArticleBody";
 import type { PublicArticleView } from "@/lib/articles/types";
 import { ReadingProgress } from "./ReadingProgress";
@@ -77,6 +78,16 @@ export function ArticleView({ article }: { article: PublicArticleView }) {
             {bio && <p className="note-author-card-bio">{bio}</p>}
           </div>
         </a>
+
+        <div className="note-public-footer">
+          <nav className="note-public-footer-nav">
+            <Link href="/legal/privacy">プライバシーポリシー</Link>
+            <Link href="/legal/tokushoho">特定商取引法に基づく表記</Link>
+            <Link href="/legal/advertising">広告表示について</Link>
+            <Link href="/legal/character">運営キャラクターについて</Link>
+          </nav>
+          <p className="note-public-footer-copy">© {new Date().getFullYear()} note-sub.top</p>
+        </div>
       </footer>
     </article>
   );

@@ -17,6 +17,8 @@ const ADMIN_PUBLIC_PATHS = [
   "/api/events/ingest",
   "/sitemap.xml",
   "/robots.txt",
+  "/go",
+  "/legal",
 ];
 
 // 公開ドメイン（note-sub.top）で許可するパスのプレフィックス
@@ -27,6 +29,7 @@ const NOTE_ALLOWED_PREFIX = [
   "/favicon",
   "/_next",
   "/go/", // A8 等アフィリの短縮URLリダイレクタ
+  "/legal/", // プラポリ・特商法・広告表示・キャラ開示
 ];
 
 // 公開ドメイン（note-sub.top）で明確に不許可にするパス
@@ -60,6 +63,7 @@ const ADMIN_FIRST_SEGMENTS = new Set([
   "api",
   "_next",
   "go", // 短縮URLリダイレクタ
+  "legal", // 法務ページ
 ]);
 
 function isPublicArticlePath(pathname: string): boolean {
