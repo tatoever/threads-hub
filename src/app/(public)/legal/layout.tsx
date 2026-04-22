@@ -14,7 +14,6 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
           <Link href="/legal/privacy">プライバシーポリシー</Link>
           <Link href="/legal/tokushoho">運営者情報</Link>
           <Link href="/legal/advertising">広告表示について</Link>
-          <Link href="/legal/character">運営キャラクターについて</Link>
         </nav>
         <p className="legal-copy">© {new Date().getFullYear()} note-sub.top</p>
       </footer>

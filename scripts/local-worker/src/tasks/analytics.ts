@@ -3,6 +3,7 @@
  */
 
 import { supabase } from "../utils/supabase";
+import { insertAlert } from "../utils/alert";
 import type { TaskData } from "../task-executor";
 
 export async function runAnalytics(task: TaskData): Promise<Record<string, any>> {
@@ -123,9 +124,9 @@ export async function runAnalytics(task: TaskData): Promise<Record<string, any>>
     pipeline_success: true,
   });
 
-  // 5. Shadow ban detection
+  // 5. Shadow ban detection (alert_configs.enabled で ON/OFF 可能)
   if (todayPosts && todayPosts.length >= 3 && totalViews === 0) {
-    await supabase.from("system_alerts").insert({
+    await insertAlert({
       account_id,
       alert_type: "shadowban_suspect",
       severity: "critical",

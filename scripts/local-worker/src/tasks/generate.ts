@@ -8,6 +8,7 @@
 import { supabase } from "../utils/supabase";
 import { callClaude, callClaudeJson, type ModelType } from "../utils/claude-cli";
 import { getJstDayContext, buildDayConstraintBlock } from "../utils/day-context";
+import { buildFamilyCanonBlock, detectForbiddenVocab, type FamilyCanon } from "../utils/family-canon";
 import type { TaskData } from "../task-executor";
 
 export async function runGenerate(task: TaskData): Promise<Record<string, any>> {
@@ -111,7 +112,7 @@ export async function runGenerate(task: TaskData): Promise<Record<string, any>> 
   let reply2: string | null = generated.reply_2 ? sanitizeContent(generated.reply_2, 200) : null;
 
   // 5. Quality check on main
-  const qualityResult = await runQualityCheck(postContent, persona);
+  const qualityResult = await runQualityCheck(postContent, persona, date);
 
   if (!qualityResult.passed) {
     // Auto-fix attempt on main only
@@ -276,6 +277,7 @@ function buildGeneratePrompt(
   const hasCta = slot.cta && slot.cta.method === "reply_tree";
   const dayCtx = getJstDayContext(date);
   const dayConstraintBlock = buildDayConstraintBlock(dayCtx);
+  const familyCanonBlock = buildFamilyCanonBlock(persona?.family_canon as FamilyCanon, date);
 
   // バズ構文テンプレ指定があればそちらを優先、なければ従来のスロット指示
   const templateSection = buzzTemplate
@@ -290,6 +292,8 @@ ${buzzTemplate.prompt_body}
   return `# 投稿生成（Threadsネイティブ文化準拠）
 
 ${dayConstraintBlock}
+
+${familyCanonBlock}
 
 ## 今日のストーリー軸
 ${narrativeThread}
@@ -423,7 +427,8 @@ function extractPostContent(text: string): string {
 
 async function runQualityCheck(
   content: string,
-  persona: any
+  persona: any,
+  date?: string
 ): Promise<{ passed: boolean; issues: string[] }> {
   const issues: string[] = [];
 
@@ -441,6 +446,12 @@ async function runQualityCheck(
     if (content.includes(word)) {
       issues.push(`禁止ワード「${word}」を含む`);
     }
+  }
+
+  // Family canon vocab guard（年齢不一致語彙の検知）
+  const forbiddenFamilyVocab = detectForbiddenVocab(content, persona?.family_canon as FamilyCanon, date);
+  for (const word of forbiddenFamilyVocab) {
+    issues.push(`家族canon違反: 「${word}」は今日時点の家族年齢と矛盾`);
   }
 
   // AI smell check (basic)

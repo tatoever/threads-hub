@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getArticleAnalytics } from "@/lib/articles/analytics";
 import { ClickHeatmap } from "./ClickHeatmap";
+import { ScrollHeatmap } from "./ScrollHeatmap";
 
 export const dynamic = "force-dynamic";
 
@@ -55,10 +56,11 @@ export default async function ArticleAnalyticsPage({
         </div>
         {accountSlug && article.status === "published" && (
           <a
-            href={`https://note-sub.top/${accountSlug}/${article.slug}`}
+            href={`https://note-sub.top/${accountSlug}/${article.slug}?no-track=1`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-muted-foreground hover:text-foreground font-mono"
+            title="計測除外付きで公開ページを開く"
           >
             note-sub.top/{accountSlug}/{article.slug} ↗
           </a>
@@ -203,11 +205,21 @@ export default async function ArticleAnalyticsPage({
         )}
       </Card>
 
-      {/* Heatmap */}
+      {/* Scroll Heatmap */}
       <Card className="p-5">
-        <h2 className="text-base font-semibold mb-2">クリックヒートマップ</h2>
+        <h2 className="text-base font-semibold mb-2">スクロール滞在ヒートマップ</h2>
         <p className="text-xs text-muted-foreground mb-4">
-          記事内でクリックされた位置（x/y = 画面幅/ページ高さに対する比率）
+          記事の各Y位置でビューポートに表示されていた累積時間（全セッション合計）。
+          赤いほどよく読まれているエリア、青いほど素通り・離脱されたエリア
+        </p>
+        <ScrollHeatmap buckets={analytics.scrollHeatmap} />
+      </Card>
+
+      {/* Click Heatmap (参考表示) */}
+      <Card className="p-5">
+        <h2 className="text-base font-semibold mb-2">クリック位置分布（参考）</h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          記事内でクリックされた位置（x/y = 画面幅/ページ高さに対する比率）。CTA や短縮URL を押した位置
         </p>
         <ClickHeatmap points={analytics.heatmapPoints} />
       </Card>

@@ -3,7 +3,7 @@ import { listArticles } from "@/lib/articles/queries";
 import { createServiceClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, ExternalLink } from "lucide-react";
+import { Plus, Pencil, ExternalLink, BarChart3, ShieldOff } from "lucide-react";
 import type { ArticleListItem, ArticleStatus } from "@/lib/articles/types";
 
 export const dynamic = "force-dynamic";
@@ -34,18 +34,30 @@ export default async function ArticlesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <header className="flex items-center justify-between">
+      <header className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">記事</h1>
           <p className="text-sm text-muted-foreground mt-1">
             note風の公開記事を管理する。10アカウント横断の一覧
           </p>
         </div>
-        <Link href="/articles/new">
-          <Button>
-            <Plus className="size-4" /> 新規作成
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <a
+            href="https://note-sub.top/no-track"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="このブラウザをアナリティクス計測から除外する"
+          >
+            <Button variant="outline" size="sm">
+              <ShieldOff className="size-4" /> ブラウザを計測から除外
+            </Button>
+          </a>
+          <Link href="/articles/new">
+            <Button>
+              <Plus className="size-4" /> 新規作成
+            </Button>
+          </Link>
+        </div>
       </header>
 
       {articles.length === 0 ? (
@@ -100,13 +112,19 @@ function ArticleRow({
       <div className="flex items-center gap-2">
         {article.status === "published" && account && (
           <Link
-            href={`/${account.slug}/${article.slug}`}
+            href={`/${account.slug}/${article.slug}?no-track=1`}
             target="_blank"
             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+            title="計測除外付きで公開ページを開く"
           >
             <ExternalLink className="size-3.5" /> 表示
           </Link>
         )}
+        <Link href={`/articles/${article.id}/analytics`}>
+          <Button variant="outline" size="sm">
+            <BarChart3 className="size-3.5" /> 分析
+          </Button>
+        </Link>
         <Link href={`/articles/${article.id}/edit`}>
           <Button variant="outline" size="sm">
             <Pencil className="size-3.5" /> 編集

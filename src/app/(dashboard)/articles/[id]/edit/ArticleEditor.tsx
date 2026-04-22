@@ -46,7 +46,8 @@ export function ArticleEditor({
 
   const slugValid = isValidSlug(slug);
   const account = accountOptions.find((a) => a.id === article.account_id);
-  const publicUrl = account && status === "published" ? `/${account.slug}/${slug}` : null;
+  // 管理者アクセスでのアナリティクス汚染を防ぐため、公開ページリンクに ?no-track=1 を付与
+  const publicUrl = account && status === "published" ? `/${account.slug}/${slug}?no-track=1` : null;
 
   async function save() {
     setSaving(true);

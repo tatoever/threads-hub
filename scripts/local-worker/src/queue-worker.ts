@@ -9,6 +9,7 @@
 
 import { supabase } from "./utils/supabase";
 import { notifyDiscord } from "./utils/notify";
+import { insertAlert } from "./utils/alert";
 import { executeTask } from "./task-executor";
 
 const POLL_INTERVAL_MS = 5_000; // 5秒ごとにポーリング
@@ -76,18 +77,16 @@ async function pollAndProcess(): Promise<void> {
 
         console.error(`[${WORKER_ID}] Task ${taskData.id} FAILED (max retries): ${taskError.message}`);
 
-        // Alert
-        await supabase.from("system_alerts").insert({
+        // Alert 振り分け: meeting の失敗は meeting_failed、それ以外は task_failed
+        const isMeeting = taskData.task_type === "pipeline_meeting" || taskData.task_type === "meeting";
+        await insertAlert({
           account_id: taskData.account_id,
-          alert_type: "task_failed",
+          alert_type: isMeeting ? "meeting_failed" : "task_failed",
           severity: "warning",
-          message: `Task ${taskData.task_type} failed after ${maxRetries} retries: ${taskError.message}`,
+          message: isMeeting
+            ? `朝のmeeting失敗: ${maxRetries}回リトライ後も失敗。当日のdaily_content_planが未生成。${taskError.message}`
+            : `Task ${taskData.task_type} failed after ${maxRetries} retries: ${taskError.message}`,
         });
-
-        await notifyDiscord(
-          `Task ${taskData.task_type} (account: ${taskData.account_id}) failed: ${taskError.message}`,
-          "warning"
-        );
       } else {
         // Retry - put back to pending
         await supabase

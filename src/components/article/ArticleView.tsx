@@ -84,7 +84,6 @@ export function ArticleView({ article }: { article: PublicArticleView }) {
             <Link href="/legal/privacy">プライバシーポリシー</Link>
             <Link href="/legal/tokushoho">運営者情報</Link>
             <Link href="/legal/advertising">広告表示について</Link>
-            <Link href="/legal/character">運営キャラクターについて</Link>
           </nav>
           <p className="note-public-footer-copy">© {new Date().getFullYear()} note-sub.top</p>
         </div>

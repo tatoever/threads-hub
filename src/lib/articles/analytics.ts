@@ -16,6 +16,11 @@ export interface ArticleAnalyticsSummary {
   topReferrers: Array<{ referrer: string; count: number }>;
   devices: { mobile: number; desktop: number; other: number };
   heatmapPoints: Array<{ x: number; y: number; count: number }>;
+  /**
+   * スクロール滞在ヒートマップ。長さ100のバケット配列。
+   * 各要素はそのページY位置（%）でビューポートに表示されていた累積秒数（全セッション合計）。
+   */
+  scrollHeatmap: number[];
   shortLinks: Array<{ slug: string; target_url: string; click_count: number }>;
 }
 
@@ -106,6 +111,19 @@ export async function getArticleAnalytics(articleId: string): Promise<ArticleAna
     return { x: bx + bucketSize / 2, y: by + bucketSize / 2, count };
   });
 
+  // スクロール滞在ヒートマップ: scroll イベントのうち payload.buckets を持つもの
+  const HEAT_BUCKETS = 100;
+  const bucketTotalsMs = new Array<number>(HEAT_BUCKETS).fill(0);
+  for (const e of scrollEvents) {
+    const buckets = (e.payload as any)?.buckets;
+    if (!Array.isArray(buckets)) continue;
+    for (let i = 0; i < Math.min(HEAT_BUCKETS, buckets.length); i++) {
+      const v = buckets[i];
+      if (typeof v === "number" && v > 0) bucketTotalsMs[i] += v;
+    }
+  }
+  const scrollHeatmap = bucketTotalsMs.map((ms) => +(ms / 1000).toFixed(2));
+
   // short_links（記事紐付き）
   const { data: shortLinks } = await supabase
     .from("short_links")
@@ -127,6 +145,7 @@ export async function getArticleAnalytics(articleId: string): Promise<ArticleAna
     topReferrers,
     devices: deviceCounts,
     heatmapPoints,
+    scrollHeatmap,
     shortLinks: shortLinks ?? [],
   };
 }

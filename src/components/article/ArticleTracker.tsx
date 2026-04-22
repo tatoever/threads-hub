@@ -11,8 +11,39 @@ import * as React from "react";
  */
 export function ArticleTracker({ articleId, accountId }: { articleId: string; accountId: string }) {
   React.useEffect(() => {
-    // noTrack オプトアウト
-    if (typeof localStorage !== "undefined" && localStorage.getItem("noTrack") === "1") return;
+    // URL パラメータでの即時切替
+    //   ?no-track=1 → このブラウザを計測から除外 (localStorage.noTrack=1)
+    //   ?no-track=0 → 除外解除
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const v = params.get("no-track") ?? params.get("noTrack");
+      if (v === "1") {
+        localStorage.setItem("noTrack", "1");
+      } else if (v === "0") {
+        localStorage.removeItem("noTrack");
+      }
+    } catch {}
+
+    // noTrack オプトアウト（除外中なら last_seen_at だけ更新して return）
+    if (typeof localStorage !== "undefined" && localStorage.getItem("noTrack") === "1") {
+      try {
+        const did = localStorage.getItem("noTrackDeviceId");
+        if (did) {
+          const body = JSON.stringify({ device_id: did });
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon("/api/no-track/ping", new Blob([body], { type: "application/json" }));
+          } else {
+            fetch("/api/no-track/ping", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body,
+              keepalive: true,
+            }).catch(() => {});
+          }
+        }
+      } catch {}
+      return;
+    }
 
     // Session ID: sessionStorage（Cookieless）
     const SESSION_KEY = "nhub:sid";
@@ -75,6 +106,47 @@ export function ArticleTracker({ articleId, accountId }: { articleId: string; ac
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
+    // ビューポート滞在ヒートマップ:
+    //   100バケット（ページ高さを1%刻みに分割）それぞれに対して、
+    //   そのY範囲がビューポートに表示されていた累積時間(ms)を記録する
+    const HEAT_BUCKETS = 100;
+    const bucketTimeMs = new Array<number>(HEAT_BUCKETS).fill(0);
+    let lastSampleAt = Date.now();
+    const sampleViewport = () => {
+      const now = Date.now();
+      const dt = now - lastSampleAt;
+      lastSampleAt = now;
+      if (document.visibilityState !== "visible") return;
+      if (dt <= 0 || dt > 60_000) return; // 60秒以上はタブ離脱とみなして捨てる
+
+      const h = document.documentElement;
+      const scrollTop = h.scrollTop || window.scrollY;
+      const viewportH = h.clientHeight;
+      const total = h.scrollHeight;
+      if (total <= 0 || viewportH <= 0) return;
+
+      const topPct = Math.max(0, Math.min(1, scrollTop / total));
+      const botPct = Math.max(0, Math.min(1, (scrollTop + viewportH) / total));
+      const topIdx = Math.floor(topPct * HEAT_BUCKETS);
+      const botIdx = Math.min(HEAT_BUCKETS - 1, Math.ceil(botPct * HEAT_BUCKETS) - 1);
+      for (let i = topIdx; i <= botIdx; i++) bucketTimeMs[i] += dt;
+    };
+    const sampleInterval = setInterval(sampleViewport, 1000);
+
+    const sendHeatmap = () => {
+      sampleViewport();
+      const total = bucketTimeMs.reduce((a, b) => a + b, 0);
+      if (total < 500) return; // 0.5秒未満のデータは無視
+      buffer.push({
+        type: "scroll",
+        // 既存の scroll イベントを相乗り。集計側は payload.buckets の有無で判別
+        buckets: bucketTimeMs.map((v) => Math.round(v)),
+        at: Date.now(),
+      });
+      // 送信したら累積はリセット
+      for (let i = 0; i < HEAT_BUCKETS; i++) bucketTimeMs[i] = 0;
+    };
+
     // 滞在時間
     let dwellAccumulated = 0;
     let lastVisibleAt: number | null = Date.now();
@@ -91,6 +163,7 @@ export function ArticleTracker({ articleId, accountId }: { articleId: string; ac
     const sendDwell = () => {
       updateDwell();
       buffer.push({ type: "dwell", ms: dwellAccumulated, at: Date.now() });
+      sendHeatmap();
       flush();
     };
 
@@ -100,9 +173,11 @@ export function ArticleTracker({ articleId, accountId }: { articleId: string; ac
     });
     window.addEventListener("pagehide", sendDwell);
 
-    // CTA click
+    // CTA click: data-cta-id / A8直リンク / note-sub.top 短縮リンク を全部拾う
     const onClick = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement)?.closest?.("a[data-cta-id], a[href*='a8mat'], a[href*='px.a8.net']");
+      const target = (e.target as HTMLElement)?.closest?.(
+        "a[data-cta-id], a[href*='a8mat'], a[href*='px.a8.net'], a[href*='note-sub.top/go/'], a[href*='/go/']"
+      );
       if (!target) return;
       const ctaId = target.getAttribute("data-cta-id") || target.getAttribute("href") || "";
       const rect = (target as HTMLElement).getBoundingClientRect();
@@ -117,8 +192,15 @@ export function ArticleTracker({ articleId, accountId }: { articleId: string; ac
     };
     document.addEventListener("click", onClick);
 
+    // 定期的にヒートマップデータも送信（長時間滞在セッションで失われないように60秒毎）
+    const heatmapInterval = setInterval(() => {
+      sendHeatmap();
+    }, 60_000);
+
     return () => {
       clearInterval(flushInterval);
+      clearInterval(sampleInterval);
+      clearInterval(heatmapInterval);
       sendDwell();
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("click", onClick);

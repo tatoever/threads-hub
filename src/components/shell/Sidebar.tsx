@@ -69,9 +69,21 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="p-4 border-t border-border text-[11px] text-muted-foreground">
-        <p className="font-medium text-foreground/70">10アカウント運用基盤</p>
-        <p className="mt-0.5">v0.1 · threads-hub</p>
+      <div className="p-3 border-t border-border space-y-2">
+        <a
+          href="https://note-sub.top/no-track"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        >
+          <span className="inline-flex size-2 rounded-full bg-emerald-500" />
+          <span className="flex-1">計測除外設定</span>
+          <span className="text-[10px]">↗</span>
+        </a>
+        <div className="px-3 text-[11px] text-muted-foreground">
+          <p className="font-medium text-foreground/70">10アカウント運用基盤</p>
+          <p className="mt-0.5">v0.1 · threads-hub</p>
+        </div>
       </div>
     </aside>
   );

@@ -24,12 +24,14 @@ const ADMIN_PUBLIC_PATHS = [
 // 公開ドメイン（note-sub.top）で許可するパスのプレフィックス
 const NOTE_ALLOWED_PREFIX = [
   "/api/events/ingest",
+  "/api/no-track", // 除外リスト登録/解除/一覧/ping
   "/sitemap.xml",
   "/robots.txt",
   "/favicon",
   "/_next",
   "/go/", // A8 等アフィリの短縮URLリダイレクタ
-  "/legal/", // プラポリ・特商法・広告表示・キャラ開示
+  "/legal/", // プラポリ・特商法・広告表示
+  "/no-track", // 管理者の計測除外オプトアウトページ
 ];
 
 // 公開ドメイン（note-sub.top）で明確に不許可にするパス
@@ -50,6 +52,8 @@ const NOTE_DENY_PREFIX = [
   "/api/settings",
 ];
 
+// admin ドメインで auth 不要・公開扱いで保留するAPIパス（追加）
+// (NOTE_ALLOWED_PREFIX に書いたAPIは admin ドメインからも叩けるように ADMIN_PUBLIC_PATHS に自動で足す運用)
 // admin ドメインで「公開記事URL」として扱わない第1セグメント
 // これらは管理画面の通常ルート（/accounts/[id] 等）なのでリダイレクト対象外
 const ADMIN_FIRST_SEGMENTS = new Set([
@@ -64,6 +68,7 @@ const ADMIN_FIRST_SEGMENTS = new Set([
   "_next",
   "go", // 短縮URLリダイレクタ
   "legal", // 法務ページ
+  "no-track", // 計測除外ページ（公開ドメインで閲覧）
 ]);
 
 function isPublicArticlePath(pathname: string): boolean {
@@ -101,9 +106,9 @@ export function middleware(req: NextRequest) {
   }
 
   // 管理ドメインでの公開記事URL（2セグメント）は note-sub.top へ 301 リダイレクト
-  // 誤って管理URLが外部に出ないようにする
+  // 誤って管理URLが外部に出ないようにする。クエリ (?no-track=1 等) は保持。
   if (isPublicArticlePath(pathname)) {
-    return NextResponse.redirect(`https://${PUBLIC_DOMAIN}${pathname}`, 301);
+    return NextResponse.redirect(`https://${PUBLIC_DOMAIN}${pathname}${req.nextUrl.search}`, 301);
   }
 
   // 管理ドメイン側の処理

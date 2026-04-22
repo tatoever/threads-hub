@@ -73,7 +73,6 @@ export default function OperatorInfoPage() {
         <ul>
           <li><a href="/legal/privacy">プライバシーポリシー</a></li>
           <li><a href="/legal/advertising">広告表示について</a></li>
-          <li><a href="/legal/character">運営キャラクターについて</a></li>
         </ul>
       </section>
     </article>

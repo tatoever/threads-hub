@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
       ...(e.cta_id !== undefined ? { cta_id: e.cta_id } : {}),
       ...(e.x !== undefined ? { x: e.x } : {}),
       ...(e.y !== undefined ? { y: e.y } : {}),
+      ...(Array.isArray(e.buckets) && e.buckets.length > 0
+        ? { buckets: e.buckets.slice(0, 200).map((v: any) => (typeof v === "number" ? v : 0)) }
+        : {}),
       device: device ?? null,
       referrer: referrer ?? null,
     },

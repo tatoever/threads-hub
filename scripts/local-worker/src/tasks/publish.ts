@@ -4,6 +4,7 @@
 
 import { supabase } from "../utils/supabase";
 import { notifyDiscord } from "../utils/notify";
+import { insertAlert } from "../utils/alert";
 import type { TaskData } from "../task-executor";
 
 export async function runPublish(task: TaskData): Promise<Record<string, any>> {
@@ -104,12 +105,16 @@ export async function runPublish(task: TaskData): Promise<Record<string, any>> {
         .update({ status: "failed" })
         .eq("id", post.id);
 
-      // Alert
-      await supabase.from("system_alerts").insert({
+      // Alert 振り分け: 429 は rate_limit_hit、それ以外は api_error
+      const msg = String(err?.message ?? err ?? "");
+      const isRateLimit = /\b429\b|rate[\s_-]?limit|too[\s_-]?many[\s_-]?requests/i.test(msg);
+      await insertAlert({
         account_id,
-        alert_type: "api_error",
+        alert_type: isRateLimit ? "rate_limit_hit" : "api_error",
         severity: "warning",
-        message: `Post publish failed: ${err.message}`,
+        message: isRateLimit
+          ? `Threads API rate limit hit: ${msg}`
+          : `Post publish failed: ${msg}`,
       });
 
       results.push({ post_id: post.id, status: "failed", error: err.message });

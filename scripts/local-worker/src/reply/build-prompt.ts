@@ -16,6 +16,7 @@ import {
 } from "./common-base";
 import { getJstTimeContext, formatCommentReceivedTime } from "./time-context";
 import { buildDayConstraintBlock } from "../utils/day-context";
+import { buildFamilyCanonBlock, type FamilyCanon } from "../utils/family-canon";
 
 export interface PersonaRow {
   display_name: string;
@@ -25,6 +26,7 @@ export interface PersonaRow {
   background: string | null;
   prohibited_words: string[] | null;
   reply_rules: ReplyRules | null;
+  family_canon?: FamilyCanon | null;
 }
 
 export interface ReplyRules {
@@ -38,6 +40,11 @@ export interface ReplyRules {
   signature_phrases?: string[];
   signature_usage?: "coloring_only" | "regular";
   auto_send?: boolean;
+  // v2 (2026-04-22): 当事者ラベル占有。7アカ女性クラスターでの越境事故対策。
+  // このアカが占有する当事者領域のキーワード。
+  exclusive_label_keywords?: string[];
+  // 他キャラが占有している領域のキーワード（返信で絶対に触れない）。
+  forbidden_other_label_keywords?: string[];
 }
 
 const REPLY_FOCUS_GUIDE: Record<NonNullable<ReplyRules["reply_focus"]>, string> = {
@@ -96,6 +103,8 @@ export function buildSystemPrompt(persona: PersonaRow): string {
 
   const firstPersonBlock = buildFirstPersonBlock(rules);
   const signatureBlock = buildSignatureBlock(rules);
+  const identityLockBlock = buildIdentityLockBlock(rules);
+  const familyCanonBlock = buildFamilyCanonBlock(persona.family_canon);
 
   return [
     `あなたは「${persona.display_name}」として、Threads コメントに返信します。`,
@@ -104,6 +113,8 @@ export function buildSystemPrompt(persona: PersonaRow): string {
     personaReplyRulesBlock,
     firstPersonBlock,
     signatureBlock,
+    identityLockBlock,
+    familyCanonBlock,
     COMMON_PEER_REGISTER,
     COMMON_BELIEFS,
     COMMON_STRUCTURE,
@@ -112,6 +123,38 @@ export function buildSystemPrompt(persona: PersonaRow): string {
     COMMON_NG,
     COMMON_OUTPUT_RULE,
   ].filter(Boolean).join("\n\n");
+}
+
+/**
+ * 当事者ラベルの占有を返信プロンプトに明示する。
+ * v2 (2026-04-22): 7アカ女性クラスターでの越境事故対策。
+ *   - 自分のラベル領域: コメント内容がそこを指す場合、ここの視点で返す
+ *   - 他キャラ占有領域: コメントに出てきても、返信本文で経験語り/比喩/例示をしない
+ */
+function buildIdentityLockBlock(rules: ReplyRules): string {
+  const mine = rules.exclusive_label_keywords || [];
+  const forbidden = rules.forbidden_other_label_keywords || [];
+  if (mine.length === 0 && forbidden.length === 0) return "";
+
+  const lines: string[] = ["# identity_lock（当事者ラベルの占有）"];
+
+  if (mine.length > 0) {
+    lines.push("");
+    lines.push("## あなたの当事者ラベル領域（この領域の視点で返信する）");
+    for (const m of mine) lines.push(`- ${m}`);
+  }
+
+  if (forbidden.length > 0) {
+    lines.push("");
+    lines.push("## 他キャラが占有している領域（返信本文で触れない）");
+    for (const f of forbidden) lines.push(`- ${f}`);
+    lines.push("");
+    lines.push("これらの領域のキーワード・自分の経験数字・体験談・比喩を返信に出さない。");
+    lines.push("コメント内容にこれらが含まれていても、自分のラベル領域から見える角度だけで返す。");
+    lines.push("例: コメンターがPMSの話をしてきても、shiroなら『繊細さが体調に出る日もあるよね』のように、自分の領域（HSP）の視点で受け止める。PMSそのものの経験談は書かない。");
+  }
+
+  return lines.join("\n");
 }
 
 function buildFirstPersonBlock(rules: ReplyRules): string {
