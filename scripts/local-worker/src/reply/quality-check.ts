@@ -20,6 +20,20 @@ export interface QualityCheckOptions {
   isOffDay?: boolean;
   /** 表示用の曜日ラベル（エラーメッセージに使用） */
   dayOfWeekJa?: string;
+  /**
+   * 生成種別のコンテキスト
+   * - comment_reply (default): コメント返信（reply.ts から呼ばれる用途）
+   * - single: 単発投稿（投稿生成側）
+   * - tree_main / tree_reply_1: ツリー型 投稿の中間ノード（cliff-hanger 許容）
+   * - tree_reply_2: ツリー型 投稿の最終ノード（句点必須）
+   */
+  contextType?: "comment_reply" | "single" | "tree_main" | "tree_reply_1" | "tree_reply_2";
+  /**
+   * コメンターの温度感（reply 用）
+   * - formal の場合、speech_level=casual キャラでも敬体混入を許容
+   *   (年配・丁寧語のコメンターに対する社会的に自然な対応)
+   */
+  commenterTone?: "casual" | "mid" | "formal";
 }
 
 export function checkReplyQuality(
@@ -123,9 +137,12 @@ export function checkReplyQuality(
   }
 
   // 12. 丁寧語レベルチェック
+  // 副次発見対応 (2026-04-25): commenterTone='formal' の場合、casual キャラでも敬体混入を許容
+  // 例: 義母など年配コメンターの丁寧コメントに敬体で返すのは社会的に自然
   const speechLevel = options.speechLevel || "casual";
-  if (speechLevel === "casual") {
-    // タメ口キャラで「です・ます」多用はNG
+  const commenterTone = options.commenterTone;
+  if (speechLevel === "casual" && commenterTone !== "formal") {
+    // タメ口キャラで「です・ます」多用はNG (相手がformalなら許容)
     const desuMasuCount = (text.match(/です[。、！？\n]|ます[。、！？\n]/g) || []).length;
     if (desuMasuCount >= 2) {
       reasons.push(`タメ口キャラなのに「です／ます」が${desuMasuCount}箇所。砕いた口調にする。`);
@@ -210,6 +227,90 @@ export function checkReplyQuality(
   );
   if (connectorCount >= 2) {
     reasons.push(`接続詞（さらに／また／加えて／その上）が${connectorCount}回。1回までに抑える。`);
+  }
+
+  // 20. 文末の句点ルール
+  // SNS口語でも、返信の最後の1文は「。」で閉じる。
+  // 例外1: ？ ！ で終わる疑問/感嘆、または引用符で閉じる場合
+  // 例外2 (Q1対応 2026-04-25): tree_main / tree_reply_1 はツリー設計上「、」「、、、」で
+  //   次に引きを作るのが正常 → このコンテキストでは句点ガードをスキップ
+  const lastChar = text.slice(-1);
+  const validEndings = ["。", "？", "！", "?", "!", "」", "）", ")", "笑"];
+  const ctx = options.contextType;
+  const isTreeMiddle = ctx === "tree_main" || ctx === "tree_reply_1";
+  if (!isTreeMiddle && text.length > 0 && !validEndings.includes(lastChar)) {
+    reasons.push(
+      `文末が句読記号で閉じられていない（最後の文字: 「${lastChar}」）。文末には必ず「。」を付けて閉じる。SNS口語でも句点は省略しない。`
+    );
+  }
+
+  // 21. 「、が〜で。」の不自然な節連結
+  // 例: 「先に手放す、が9のセオリーで。」→「先に手放すのが9のセオリー。」
+  if (/、が[^、。]{2,20}で[。？！?!]/.test(text)) {
+    reasons.push(
+      "「、が〜で。」の不自然な節連結を検出。「〜のが〜」に書き換え、「〜で。」で終止せず「〜だ。/〜です。/〜。」で閉じる。"
+    );
+  }
+
+  // 22. 連用形「〜で。」終止
+  // 「〜で。」で止めるのは中途半端。「〜だ。」「〜です。」「〜。」にする
+  // ただし「〜ので。」「〜まで。」「〜から。」等は許容
+  if (/[^のまかくへ]で[。]$/.test(text)) {
+    reasons.push(
+      "連用形「〜で。」で文が終止している。「〜だ。/〜です。/〜。」の終止形で閉じる。"
+    );
+  }
+
+  // 23. コメンターの書き方をメタに論評する癖（再設計版 2026-04-25）
+  // 旧ロジックは「引用+共感」型「『〜』、その言葉に〜」も誤検知してたので、
+  // 「装飾要素 (target)」+「動作動詞 (verb)」+「評価語 (eval)」の3要素のうち
+  // 2つ以上が30字以内に共起した時のみメタ論評と判定
+  const META_TARGET = /(「[笑ｗw！!?？]」|絵文字|顔文字|スタンプ|語尾|句読点|改行|文体|書き方|つけ方|入れ方)/;
+  const META_VERB = /(つけ(?:て|る|た|てる)|書い(?:て|た)|使っ(?:て|た)|入れ(?:て|た)|込め(?:て|た))/;
+  const META_EVAL = /(いい|正直|印象的|かわい|素敵|気持ち|センス|うまい|ぐっとくる|好き)/;
+  const targetMatch = text.match(META_TARGET);
+  if (targetMatch && typeof targetMatch.index === "number") {
+    const idx = targetMatch.index;
+    const around = text.slice(Math.max(0, idx - 30), idx + targetMatch[0].length + 30);
+    const hasVerb = META_VERB.test(around);
+    const hasEval = META_EVAL.test(around);
+    // 装飾要素+動詞+評価 が同時 → メタ論評
+    if (hasVerb && hasEval) {
+      reasons.push(
+        "コメンターの『笑』『絵文字』『語尾』等の表現方法を論評している。相手の書き方は受け取るだけで、自分から評論しない。"
+      );
+    }
+  }
+  // 旧ロジックの "「.+」って(つけ|書い)" も装飾要素+動詞のセットなのでここで併せて検知
+  if (/「[^」]+」って(つけて|書い|入れて|使って)(る|た|てる)?/.test(text)) {
+    reasons.push("「『〜』ってつけて/書いて/使って」型のメタ論評を検出。相手の書き方の論評はしない。");
+  }
+
+  // 24. 「、、」以上の連続読点（三点リーダ代用のAI臭）
+  // Q1/Q3対応 (2026-04-25): tree_main / tree_reply_1 末尾1箇所のみ許容
+  //   それ以外（複数箇所、文中、コメント返信、tree_reply_2、single）は一律NG
+  const tripleCommaMatches = [...text.matchAll(/、{2,}/g)];
+  if (tripleCommaMatches.length > 0) {
+    const onlyAtEndOfTreeMiddle =
+      isTreeMiddle &&
+      tripleCommaMatches.length === 1 &&
+      (tripleCommaMatches[0].index ?? 0) + tripleCommaMatches[0][0].length >= text.length - 1;
+    if (!onlyAtEndOfTreeMiddle) {
+      reasons.push(
+        "「、、」以上の連続読点を検出（三点リーダ代用のAI臭パターン）。読点で間を作らず、句点や改行で表現する。"
+      );
+    }
+  }
+
+  // 25. 不完全な文末（動詞語幹切れ）
+  // 例: 「二度寝してい。」「考えてい。」「やってき。」のような語幹切れ
+  // ホワイトリスト: 形容詞・名詞で正常に終わる末尾は除外
+  const VALID_VERB_TAIL = /(した|して(?:る|た|ます)?|きた|きて|なった|なって|あった|あって|いた|いて|くる|くれた|くれて|だった|だ|である|です|ます|ました|ません|ない|なく|たい|たくて|そう|よう|べき|わ|よ|ね|の|から|けど|のに|のだ|んだ|わけ|はず|つもり)。?$/;
+  const SAFE_NOUN_ADJ = /(ない|たい|らしい|ほしい|きれい|うれしい|かなしい|あたたかい|つめたい|やさしい|はずかしい|もう|いま|きょう|あした|わたし|きみ|あなた|きもち|なみだ|こころ|ことば|あさ|ひる|よる|つき|ほし|ひと|いえ|まち|みち|かぜ|あめ|ゆき|はな|き|ね|よ|わ|の|か|さ)。?$/;
+  const SUSPICIOUS_TAIL = /[ぁ-ん]{1,2}。$/;
+  if (SUSPICIOUS_TAIL.test(text) && !VALID_VERB_TAIL.test(text) && !SAFE_NOUN_ADJ.test(text)) {
+    const tail = text.slice(-3);
+    reasons.push(`不完全な文末の疑い: 「${tail}」(動詞語幹切れ・生成事故の可能性)`);
   }
 
   return {

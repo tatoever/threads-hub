@@ -15,7 +15,7 @@ import { supabase } from "../utils/supabase";
 import { callClaude, type ModelType } from "../utils/claude-cli";
 import { publishToThreads } from "../utils/threads-api";
 import type { TaskData } from "../task-executor";
-import { buildSystemPrompt, buildUserPrompt, type PersonaRow, type ReplyRules } from "../reply/build-prompt";
+import { buildSystemPrompt, buildUserPrompt, inferToneHint, type PersonaRow, type ReplyRules } from "../reply/build-prompt";
 import { checkReplyQuality, formatReasonsForRegen } from "../reply/quality-check";
 import { getRecentReplyOpenings } from "../reply/anti-repeat";
 import { getJstDayContext } from "../utils/day-context";
@@ -100,9 +100,13 @@ export async function runReply(task: TaskData): Promise<Record<string, any>> {
       let { text: generated } = await callClaude(userPrompt, { model, systemPrompt });
       let replyText = sanitize(generated, MAX_REPLY_CHARS);
 
-      // 品質チェック
+      // 品質チェック (2026-04-25: commenterTone と contextType を渡す)
       const dayCtx = getJstDayContext();
-      let check = checkReplyQuality(replyText, {
+      const tone = inferToneHint(comment.content || "");
+      const commenterTone =
+        tone.label === "カジュアル" ? "casual" :
+        tone.label === "フォーマル" ? "formal" : "mid";
+      const qcOptions = {
         maxChars: MAX_REPLY_CHARS,
         speechLevel: rules.speech_level,
         firstPersonToken: rules.first_person_when_used,
@@ -110,7 +114,10 @@ export async function runReply(task: TaskData): Promise<Record<string, any>> {
         accountProhibitedWords: persona.prohibited_words || [],
         isOffDay: dayCtx.isOffDay,
         dayOfWeekJa: dayCtx.dayOfWeekJa,
-      });
+        contextType: "comment_reply" as const,
+        commenterTone: commenterTone as "casual" | "mid" | "formal",
+      };
+      let check = checkReplyQuality(replyText, qcOptions);
 
       // NGなら1回だけリジェネ
       if (!check.ok) {
@@ -124,15 +131,7 @@ export async function runReply(task: TaskData): Promise<Record<string, any>> {
         });
         const regen = await callClaude(regenUser, { model, systemPrompt });
         const regenText = sanitize(regen.text, MAX_REPLY_CHARS);
-        const regenCheck = checkReplyQuality(regenText, {
-          maxChars: MAX_REPLY_CHARS,
-          speechLevel: rules.speech_level,
-          firstPersonToken: rules.first_person_when_used,
-          firstPersonStrict: rules.first_person_strict,
-          accountProhibitedWords: persona.prohibited_words || [],
-          isOffDay: dayCtx.isOffDay,
-          dayOfWeekJa: dayCtx.dayOfWeekJa,
-        });
+        const regenCheck = checkReplyQuality(regenText, qcOptions);
         if (regenCheck.ok) {
           replyText = regenText;
           check = regenCheck;

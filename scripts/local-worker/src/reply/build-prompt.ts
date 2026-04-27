@@ -12,6 +12,7 @@ import {
   COMMON_PEER_REGISTER,
   COMMON_TIME_RULES,
   COMMON_CONTEXT_LINK,
+  COMMON_TONE_SYNC,
   COMMON_OUTPUT_RULE,
 } from "./common-base";
 import { getJstTimeContext, formatCommentReceivedTime } from "./time-context";
@@ -45,6 +46,13 @@ export interface ReplyRules {
   exclusive_label_keywords?: string[];
   // 他キャラが占有している領域のキーワード（返信で絶対に触れない）。
   forbidden_other_label_keywords?: string[];
+  // v3 (2026-04-23): キャラ別返信スタイル微調整
+  /** 「笑」の使用頻度: sometimes=相手に呼応/rare=基本使わない */
+  laugh_usage?: "sometimes" | "rare";
+  /** カジュアル相手への呼応レベル: polite_casual=丁寧半分残す/stay_polite=敬体維持 */
+  casual_register_preference?: "polite_casual" | "stay_polite";
+  /** 返信で自然に出るフレーズ例（相槌・共感の色付け、3-6個） */
+  reply_example_phrases?: string[];
 }
 
 const REPLY_FOCUS_GUIDE: Record<NonNullable<ReplyRules["reply_focus"]>, string> = {
@@ -104,6 +112,9 @@ export function buildSystemPrompt(persona: PersonaRow): string {
   const firstPersonBlock = buildFirstPersonBlock(rules);
   const signatureBlock = buildSignatureBlock(rules);
   const identityLockBlock = buildIdentityLockBlock(rules);
+  const laughBlock = buildLaughBlock(rules);
+  const casualRegisterBlock = buildCasualRegisterBlock(rules);
+  const replyExampleBlock = buildReplyExampleBlock(rules);
   const familyCanonBlock = buildFamilyCanonBlock(persona.family_canon);
 
   return [
@@ -114,12 +125,16 @@ export function buildSystemPrompt(persona: PersonaRow): string {
     firstPersonBlock,
     signatureBlock,
     identityLockBlock,
+    laughBlock,
+    casualRegisterBlock,
+    replyExampleBlock,
     familyCanonBlock,
     COMMON_PEER_REGISTER,
     COMMON_BELIEFS,
     COMMON_STRUCTURE,
     COMMON_CONTEXT_LINK,
     COMMON_TIME_RULES,
+    COMMON_TONE_SYNC,
     COMMON_NG,
     COMMON_OUTPUT_RULE,
   ].filter(Boolean).join("\n\n");
@@ -191,6 +206,48 @@ function buildSignatureBlock(rules: ReplyRules): string {
   return [header, list, rule].join("\n");
 }
 
+/**
+ * v3 (2026-04-23): 「笑」の使用頻度
+ */
+function buildLaughBlock(rules: ReplyRules): string {
+  const usage = rules.laugh_usage ?? "sometimes";
+  const guides = {
+    sometimes:
+      "相手が「笑/ｗ」を使っている時に、呼応として自然に入れてよい。自分から率先して使う必要はない。1返信1回まで。",
+    rare:
+      "「笑」は基本使わない。柔らかさは語尾と選語で出す。相手が「笑」を使っていても、自分は使わずに落ち着いた温度で返す。",
+  } as const;
+  return `# 「笑」の使い方\n${guides[usage]}`;
+}
+
+/**
+ * v3 (2026-04-23): カジュアル相手への呼応レベル
+ */
+function buildCasualRegisterBlock(rules: ReplyRules): string {
+  const pref = rules.casual_register_preference ?? "polite_casual";
+  const guides = {
+    polite_casual:
+      "相手がタメ口や「笑」で話してきても、こちらは丁寧さを半分残す。「〜ですよね笑」「〜なんですよね」程度までは崩してよいが、完全タメ口（「それな」「〜じゃん」「〜だよね」単独）にはしない。",
+    stay_polite:
+      "相手がカジュアルでも敬体を維持する。笑・絵文字は使わず、「〜ですよ」「〜だと思いますよ」「〜かもしれません」で丁寧に返す。崩しすぎない温度を死守する。",
+  } as const;
+  return `# カジュアル相手への呼応レベル\n${guides[pref]}`;
+}
+
+/**
+ * v3 (2026-04-23): 返信で自然に出るフレーズ例（相槌・共感の色付け）
+ * signature_phrases（投稿本文での骨格語彙）とは別に、返信限定の「気軽な共感語彙」
+ */
+function buildReplyExampleBlock(rules: ReplyRules): string {
+  const phrases = rules.reply_example_phrases ?? [];
+  if (phrases.length === 0) return "";
+  const header = "# 返信で自然に出るフレーズ例（相槌・共感の色付け）";
+  const list = phrases.map((p) => `- 「${p}」`).join("\n");
+  const rule =
+    "※ これらは「気軽な共感・相槌」の色付けで、骨格ではない。返信の流れで自然に出るなら使う。無理に全フレーズを入れようとしない。1返信で最大1-2個まで。";
+  return [header, list, rule].join("\n");
+}
+
 export interface UserPromptInput {
   postContent: string | null;
   commentContent: string;
@@ -200,12 +257,47 @@ export interface UserPromptInput {
   regenerationFeedback?: string; // 品質チェック後のリジェネ時のみ
 }
 
+/**
+ * コメント本文から温度感（カジュアル/中間/フォーマル）を推測する
+ * 外部 (reply.ts) からも使えるよう export
+ */
+export function inferToneHint(comment: string): { label: string; signals: string[] } {
+  const signals: string[] = [];
+  let casualScore = 0;
+  let formalScore = 0;
+
+  // カジュアル signal
+  if (/笑|ｗ|w{2,}/.test(comment)) { signals.push("笑/ｗ"); casualScore += 2; }
+  const exclamCount = (comment.match(/[！!]/g) || []).length;
+  if (exclamCount >= 1) { signals.push(`！×${exclamCount}`); casualScore += 1; }
+  if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(comment)) { signals.push("絵文字"); casualScore += 2; }
+  if (/だよね|じゃん|だね|やん|やった|うれし/.test(comment)) { signals.push("タメ口語尾"); casualScore += 2; }
+  if (comment.trim().length <= 10) { signals.push("極短"); casualScore += 1; }
+
+  // フォーマル signal
+  if (/ます[。？]|です[。？]|でしょうか|いただ|ございま/.test(comment)) { signals.push("です・ます丁寧"); formalScore += 2; }
+  if (comment.length > 80 && !/[！!笑ｗ]|[\u{1F300}-\u{1FAFF}]/u.test(comment)) {
+    signals.push("長文無記号"); formalScore += 1;
+  }
+
+  let label = "中間";
+  if (casualScore >= 2 && casualScore > formalScore) label = "カジュアル";
+  else if (formalScore >= 2 && formalScore > casualScore) label = "フォーマル";
+
+  return { label, signals };
+}
+
 export function buildUserPrompt(input: UserPromptInput): string {
   const time = getJstTimeContext();
   const dayConstraintBlock = buildDayConstraintBlock(time.dayContext);
   const commentTime = formatCommentReceivedTime(input.commentCreatedAt);
   const postSnippet = (input.postContent || "（元投稿不明）").slice(0, 500);
   const author = input.commentAuthorUsername ? `@${input.commentAuthorUsername}` : "コメンター";
+
+  const tone = inferToneHint(input.commentContent);
+  const toneBlock = `【コメンターの温度感】${tone.label}${tone.signals.length > 0 ? `（検知: ${tone.signals.join("、")}）` : ""}
+→ 自分の speech_level の枠内で、この温度感に合わせて微調整する（COMMON_TONE_SYNC 参照）。
+→ ただし「笑」「絵文字」「語尾」を "メタに論評" しない。相手の書き方は受け取るだけ。`;
 
   const avoidBlock =
     input.avoidOpenings.length > 0
@@ -219,7 +311,7 @@ ${input.regenerationFeedback}`
     : "";
 
   return [
-    `【現在時刻】${time.nowJstIso}（${time.dayContext.dayOfWeekJa}、時間帯: ${time.timeBand}）`,
+    `【現在時刻】${time.nowJstIso}(${time.dayContext.dayOfWeekJa}、時間帯: ${time.timeBand})`,
     `【コメント受信時刻】${commentTime}`,
     "",
     dayConstraintBlock,
@@ -229,6 +321,8 @@ ${input.regenerationFeedback}`
     "",
     `【コメント（これに返信する）】`,
     `${author}: ${input.commentContent}`,
+    "",
+    toneBlock,
     "",
     avoidBlock,
     regenBlock,

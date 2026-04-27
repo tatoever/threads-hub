@@ -1,25 +1,11 @@
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, TrendingUp, TrendingDown, MessageSquare } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { StatusDot, statusToTone } from "@/components/shell/StatusDot";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils/cn";
-
-export type PhaseCellState = "done" | "running" | "waiting" | "error" | "idle";
-
-export const PHASE_LABELS: { key: string; label: string }[] = [
-  { key: "research", label: "Research" },
-  { key: "intelligence", label: "Intel" },
-  { key: "community", label: "Community" },
-  { key: "meeting", label: "Meeting" },
-  { key: "generate", label: "Generate" },
-];
+import type { TripleMetric } from "@/lib/dashboard/kpi";
 
 export interface MatrixRow {
   id: string;
@@ -31,47 +17,61 @@ export interface MatrixRow {
   published: number;
   total: number;
   target: number;
-  phases: Record<string, PhaseCellState>;
-  followerDelta?: number | null;
-  followerCount?: number | null;
-  commentsToday?: number;
-  commentsPending?: number;
+
+  // 4指標 x 3軸
+  followerDelta: TripleMetric; // today/yesterday=delta, total=現在累計
+  comments: TripleMetric;
+  noteViews: TripleMetric;
+  urlClicks: TripleMetric;
 }
 
-const cellStyles: Record<PhaseCellState, string> = {
-  done: "bg-success-muted text-success ring-success/20",
-  running: "bg-info-muted text-info ring-info/20 animate-pulse",
-  waiting: "bg-muted text-muted-foreground ring-transparent",
-  error: "bg-danger-muted text-danger ring-danger/20",
-  idle: "bg-transparent text-muted-foreground/40 ring-transparent",
-};
+function formatDelta(n: number): string {
+  if (n === 0) return "0";
+  return n > 0 ? `+${n.toLocaleString()}` : `${n.toLocaleString()}`;
+}
 
-const cellLabel: Record<PhaseCellState, string> = {
-  done: "完了",
-  running: "実行中",
-  waiting: "待機",
-  error: "失敗",
-  idle: "未実行",
-};
+function formatNum(n: number): string {
+  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
+  return n.toLocaleString();
+}
 
-function PhaseCell({ state, label }: { state: PhaseCellState; label: string }) {
+function deltaColor(today: number, yesterday: number): string {
+  if (today > yesterday) return "text-success";
+  if (today < yesterday) return "text-danger";
+  return "text-foreground";
+}
+
+/**
+ * 1セル表示: 「本日(前日) / 総」形式
+ */
+function MetricCell({
+  metric,
+  asDelta = false,
+}: {
+  metric: TripleMetric;
+  asDelta?: boolean;
+}) {
+  const todayStr = asDelta ? formatDelta(metric.today) : formatNum(metric.today);
+  const ydayStr = asDelta ? formatDelta(metric.yesterday) : formatNum(metric.yesterday);
+  const totalStr = formatNum(metric.total);
+
+  const empty = metric.today === 0 && metric.yesterday === 0 && metric.total === 0;
+  if (empty) {
+    return <span className="text-xs text-muted-foreground/40">—</span>;
+  }
+
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span
-          className={cn(
-            "inline-flex items-center justify-center size-7 rounded-md text-[10px] font-medium ring-1 transition-all",
-            cellStyles[state],
-          )}
-        >
-          {state === "idle" ? "—" : state === "done" ? "✓" : state === "error" ? "!" : "·"}
+    <div className="flex flex-col items-end leading-tight tabular-nums">
+      <span className={cn("text-sm font-semibold", deltaColor(metric.today, metric.yesterday))}>
+        {todayStr}
+        <span className="text-[10px] text-muted-foreground font-normal ml-1">
+          ({ydayStr})
         </span>
-      </TooltipTrigger>
-      <TooltipContent>
-        <span className="font-medium">{label}</span>
-        <span className="ml-1 text-muted-foreground">{cellLabel[state]}</span>
-      </TooltipContent>
-    </Tooltip>
+      </span>
+      <span className="text-[10px] text-muted-foreground">
+        / {totalStr}
+      </span>
+    </div>
   );
 }
 
@@ -82,7 +82,7 @@ export function AccountMatrix({ rows }: { rows: MatrixRow[] }) {
         <div>
           <h2 className="text-base font-semibold">アカウント稼働マトリクス</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            全{rows.length}アカウントの投稿進捗とパイプライン状況
+            全{rows.length}アカウント · 本日(前日) / 累計
           </p>
         </div>
         <Link
@@ -107,20 +107,18 @@ export function AccountMatrix({ rows }: { rows: MatrixRow[] }) {
               <th className="text-left font-medium text-xs uppercase tracking-wider text-muted-foreground py-2.5 px-2">
                 今日の投稿
               </th>
-              <th className="text-right font-medium text-xs uppercase tracking-wider text-muted-foreground py-2.5 px-2">
+              <th className="text-right font-medium text-xs uppercase tracking-wider text-muted-foreground py-2.5 px-3">
                 フォロワー
               </th>
-              <th className="text-right font-medium text-xs uppercase tracking-wider text-muted-foreground py-2.5 px-2">
+              <th className="text-right font-medium text-xs uppercase tracking-wider text-muted-foreground py-2.5 px-3">
                 コメント
               </th>
-              {PHASE_LABELS.map((p) => (
-                <th
-                  key={p.key}
-                  className="text-center font-medium text-xs uppercase tracking-wider text-muted-foreground py-2.5 px-1"
-                >
-                  {p.label}
-                </th>
-              ))}
+              <th className="text-right font-medium text-xs uppercase tracking-wider text-muted-foreground py-2.5 px-3">
+                note遷移
+              </th>
+              <th className="text-right font-medium text-xs uppercase tracking-wider text-muted-foreground py-2.5 px-3">
+                URLクリック
+              </th>
               <th className="w-8" />
             </tr>
           </thead>
@@ -173,26 +171,18 @@ export function AccountMatrix({ rows }: { rows: MatrixRow[] }) {
                       </div>
                     </div>
                   </td>
-                  <td className="py-3 px-2 text-right">
-                    <FollowerCell
-                      count={row.followerCount}
-                      delta={row.followerDelta}
-                    />
+                  <td className="py-3 px-3 text-right">
+                    <MetricCell metric={row.followerDelta} asDelta />
                   </td>
-                  <td className="py-3 px-2 text-right">
-                    <CommentCell
-                      total={row.commentsToday}
-                      pending={row.commentsPending}
-                    />
+                  <td className="py-3 px-3 text-right">
+                    <MetricCell metric={row.comments} />
                   </td>
-                  {PHASE_LABELS.map((p) => (
-                    <td key={p.key} className="py-3 px-1 text-center">
-                      <PhaseCell
-                        state={row.phases[p.key] ?? "idle"}
-                        label={p.label}
-                      />
-                    </td>
-                  ))}
+                  <td className="py-3 px-3 text-right">
+                    <MetricCell metric={row.noteViews} />
+                  </td>
+                  <td className="py-3 px-3 text-right">
+                    <MetricCell metric={row.urlClicks} />
+                  </td>
                   <td className="pr-5">
                     <Link
                       href={`/accounts/${row.id}`}
@@ -207,7 +197,7 @@ export function AccountMatrix({ rows }: { rows: MatrixRow[] }) {
             {rows.length === 0 && (
               <tr>
                 <td
-                  colSpan={PHASE_LABELS.length + 6}
+                  colSpan={8}
                   className="text-center text-muted-foreground py-10"
                 >
                   アカウントがまだありません。
@@ -224,60 +214,6 @@ export function AccountMatrix({ rows }: { rows: MatrixRow[] }) {
         </table>
       </div>
     </Card>
-  );
-}
-
-function FollowerCell({
-  count,
-  delta,
-}: {
-  count: number | null | undefined;
-  delta: number | null | undefined;
-}) {
-  if (count == null && (delta == null || delta === 0)) {
-    return <span className="text-xs text-muted-foreground/50">—</span>;
-  }
-  const Icon = delta == null ? null : delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : null;
-  const deltaColor =
-    delta == null || delta === 0
-      ? "text-muted-foreground"
-      : delta > 0
-      ? "text-success"
-      : "text-danger";
-  return (
-    <div className="flex flex-col items-end leading-tight">
-      <span className="text-xs font-semibold tabular-nums">
-        {count != null ? count.toLocaleString() : "—"}
-      </span>
-      {delta != null && delta !== 0 && (
-        <span className={cn("text-[10px] tabular-nums inline-flex items-center gap-0.5", deltaColor)}>
-          {Icon && <Icon className="size-2.5" />}
-          {delta > 0 ? "+" : ""}
-          {delta}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function CommentCell({
-  total,
-  pending,
-}: {
-  total: number | undefined;
-  pending: number | undefined;
-}) {
-  if (!total && !pending) {
-    return <span className="text-xs text-muted-foreground/50">—</span>;
-  }
-  return (
-    <div className="inline-flex items-center gap-1.5 text-xs tabular-nums">
-      <MessageSquare className="size-3 text-muted-foreground" />
-      <span className="font-medium">{total ?? 0}</span>
-      {pending ? (
-        <span className="text-warning">({pending})</span>
-      ) : null}
-    </div>
   );
 }
 

@@ -26,7 +26,7 @@ export async function runCommentDetect(task: TaskData): Promise<Record<string, a
       .maybeSingle(),
     supabase
       .from("accounts")
-      .select("threads_user_id")
+      .select("threads_user_id, threads_username")
       .eq("id", account_id)
       .maybeSingle(),
   ]);
@@ -34,6 +34,9 @@ export async function runCommentDetect(task: TaskData): Promise<Record<string, a
   if (!token?.access_token || !account?.threads_user_id) {
     return { status: "missing_credentials" };
   }
+
+  // 自分のツリー返信 (reply_1 / reply_2) が conversation で返ってくるので除外する
+  const selfUsername: string | null = account.threads_username || null;
 
   // 過去14日以内に published の投稿を取得
   const since = new Date(Date.now() - LOOKBACK_DAYS * 86_400_000).toISOString();
@@ -59,15 +62,22 @@ export async function runCommentDetect(task: TaskData): Promise<Record<string, a
     if (!post.threads_post_id) continue;
 
     try {
-      const comments = await fetchConversation({
+      const rawComments = await fetchConversation({
         mediaId: post.threads_post_id,
         accessToken: token.access_token,
       });
 
+      // 自分のツリー返信 (reply_1 / reply_2) を除外
+      // Threads API の conversation は自アカのreplyも含めて返すため
+      const comments = selfUsername
+        ? rawComments.filter((c) => c.username && c.username !== selfUsername)
+        : rawComments;
+      const selfFiltered = rawComments.length - comments.length;
+
       detectedTotal += comments.length;
 
       if (comments.length === 0) {
-        perPost.push({ post_id: post.id, detected: 0, inserted: 0 });
+        perPost.push({ post_id: post.id, detected: 0, inserted: 0, self_filtered: selfFiltered });
         continue;
       }
 
@@ -92,11 +102,11 @@ export async function runCommentDetect(task: TaskData): Promise<Record<string, a
         .select("id");
 
       if (error) {
-        perPost.push({ post_id: post.id, detected: comments.length, error: error.message });
+        perPost.push({ post_id: post.id, detected: comments.length, error: error.message, self_filtered: selfFiltered });
       } else {
         const count = inserted?.length || 0;
         insertedTotal += count;
-        perPost.push({ post_id: post.id, detected: comments.length, inserted: count });
+        perPost.push({ post_id: post.id, detected: comments.length, inserted: count, self_filtered: selfFiltered });
       }
     } catch (err: any) {
       perPost.push({ post_id: post.id, error: err.message });

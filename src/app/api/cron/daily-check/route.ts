@@ -21,10 +21,13 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceClient();
   const now = new Date();
   const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 3600 * 1000);
-  const yesterdayStart = new Date(now.getTime() - 24 * 3600 * 1000);
-  yesterdayStart.setUTCHours(0, 0, 0, 0);
-  const todayStartUtc = new Date(now);
-  todayStartUtc.setUTCHours(0, 0, 0, 0);
+
+  // 2026-04-28 修正: JST 基準で日付境界を計算 (UTC基準だと9時間ずれて誤検知)
+  const jstNow = new Date(now.getTime() + 9 * 3600 * 1000);
+  const todayDateJst = jstNow.toISOString().slice(0, 10);
+  const yesterdayDateJst = new Date(jstNow.getTime() - 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const todayStartUtc = new Date(`${todayDateJst}T00:00:00+09:00`);     // JST 00:00 → UTC ISO
+  const yesterdayStart = new Date(`${yesterdayDateJst}T00:00:00+09:00`); // JST 前日 00:00 → UTC ISO
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 3600 * 1000);
 
   // === alert_configs を一括取得（enabled チェック用）===

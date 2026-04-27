@@ -264,6 +264,7 @@ function buildDefaultSystemPrompt(persona: any): string {
 - main 本文は200文字以内（長くなる場合は reply_1/reply_2 にツリー分割）
 - 禁止ワード: ${prohibitedWords.join(", ") || "なし"}
 - AI臭い表現を避ける（emダッシュ、三点リーダの多用、「...」、定型的な締めくくり）
+- 文末の句点ルール（必須）: main / reply_1 / reply_2 のそれぞれ最後の1文は「。」「？」「！」のいずれかで閉じる。SNS口語でも最終文の末尾句点は省略しない。例: 「偉いですね」→❌ / 「偉いですね。」→✅
 - JSON形式で出力（main / reply_1 / reply_2）`;
 }
 

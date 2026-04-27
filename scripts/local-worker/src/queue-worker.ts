@@ -193,6 +193,158 @@ async function pollFallback(): Promise<void> {
   }
 }
 
+/**
+ * self-enqueue ループ: 5分ごと、全 active アカに publish/comment_detect/analytics
+ * タスクを自律的に積む。GitHub Actions cron の遅延に依存しないためのフォールバック。
+ * 既に pending/processing のタスクがあればスキップ（重複防止）。
+ * Worker 1台だけが積めば全 Worker が拾える (race にならない)
+ */
+const SELF_ENQUEUE_INTERVAL_MS = 5 * 60 * 1000; // 5分
+const SELF_ENQUEUE_TASKS = ["publish", "comment_detect", "analytics"] as const;
+let isPrimaryEnqueuer = false; // 最初に起動した Worker だけが積む
+
+async function selfEnqueueTick(): Promise<void> {
+  if (!isPrimaryEnqueuer) return;
+  try {
+    const { data: accounts } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("status", "active");
+    if (!accounts || accounts.length === 0) return;
+
+    let enqueued = 0;
+    for (const acc of accounts) {
+      for (const taskType of SELF_ENQUEUE_TASKS) {
+        // 既に pending / processing のタスクがあればスキップ
+        const { data: existing } = await supabase
+          .from("task_queue")
+          .select("id")
+          .eq("account_id", acc.id)
+          .eq("task_type", taskType)
+          .in("status", ["pending", "processing"])
+          .limit(1);
+        if (existing && existing.length > 0) continue;
+
+        await supabase.from("task_queue").insert({
+          account_id: acc.id,
+          task_type: taskType,
+          priority: 5,
+          payload: { trigger: "self_enqueue" },
+          model: "sonnet",
+        });
+        enqueued++;
+      }
+    }
+    if (enqueued > 0) {
+      console.log(`[${WORKER_ID}] self-enqueue: ${enqueued} tasks across ${accounts.length} accounts`);
+    }
+  } catch (err: any) {
+    console.error(`[${WORKER_ID}] self-enqueue error:`, err?.message);
+  }
+}
+
+/**
+ * 最初に起動した Worker だけが primary になるロック。
+ * worker_state テーブルを使わず、task_queue に mutex 的レコードを置く方式はコスト高いので
+ * 単に setInterval の冪等性（既存 pending があればスキップ）で充分。
+ * ここでは常に isPrimaryEnqueuer=true にして、全 Worker が 5分ごと呼ぶが
+ * insert は冪等ガードで重複しない。
+ */
+
+/**
+ * 日次 cron self-enqueue (Vercel Hobby plan の flexible window 障害対策)
+ *
+ * - JST 5:30 以降で当日 pipeline_runs が未生成 → pipeline タスク 40件 (10アカ × 4フェーズ) を積む
+ * - JST 7:30 以降で当日 daily_health_summaries が未生成 → /api/cron/morning-health を呼び出す
+ *
+ * 冪等: 既に pipeline_runs / daily_health_summaries が存在すれば何もしない
+ */
+async function selfEnqueueDailyIfNeeded(): Promise<void> {
+  if (!isPrimaryEnqueuer) return;
+  try {
+    const jstNow = new Date(Date.now() + 9 * 3600 * 1000);
+    const jstHour = jstNow.getUTCHours();
+    const todayJst = jstNow.toISOString().slice(0, 10);
+
+    // === 1. pipeline (research/intelligence/community/meeting) ===
+    if (jstHour >= 5 && jstHour <= 11) {
+      const { count } = await supabase
+        .from("pipeline_runs")
+        .select("*", { count: "exact", head: true })
+        .eq("date", todayJst);
+      if ((count ?? 0) === 0) {
+        // 当日 pipeline 未実行 → 全 active アカに 4フェーズタスクを積む
+        const { data: accounts } = await supabase
+          .from("accounts")
+          .select("id")
+          .eq("status", "active");
+        if (accounts && accounts.length > 0) {
+          const phases = [
+            { task: "pipeline_research", model: "sonnet", priority: 1 },
+            { task: "pipeline_intelligence", model: "sonnet", priority: 2 },
+            { task: "pipeline_community", model: "sonnet", priority: 3 },
+            { task: "pipeline_meeting", model: "opus", priority: 4 },
+          ];
+          let added = 0;
+          for (const acc of accounts) {
+            for (const p of phases) {
+              await supabase.from("task_queue").insert({
+                account_id: acc.id,
+                task_type: p.task,
+                priority: p.priority,
+                payload: { date: todayJst, trigger: "self_enqueue_daily_pipeline" },
+                model: p.model,
+              });
+              added++;
+            }
+            // pipeline_runs に pending レコード作成 (Vercel cron route と同じ動作)
+            for (const phase of ["research", "intelligence", "community", "meeting"]) {
+              await supabase.from("pipeline_runs").upsert(
+                { account_id: acc.id, date: todayJst, phase, status: "pending" },
+                { onConflict: "account_id,date,phase" }
+              );
+            }
+          }
+          console.log(
+            `[${WORKER_ID}] self-enqueue DAILY pipeline: ${added} tasks across ${accounts.length} accounts (Vercel cron 不発火 検出)`
+          );
+        }
+      }
+    }
+
+    // === 2. morning-health ===
+    if (jstHour >= 7) {
+      const { data: existing } = await supabase
+        .from("daily_health_summaries")
+        .select("date")
+        .eq("date", todayJst)
+        .maybeSingle();
+      if (!existing) {
+        // 未実行 → 内部で morning-health の API を呼ぶ
+        const baseUrl = process.env.PUBLIC_BASE_URL || "https://urasan-threads-auto-hub.vercel.app";
+        const cronSecret = process.env.CRON_SECRET;
+        if (cronSecret) {
+          try {
+            const res = await fetch(`${baseUrl}/api/cron/morning-health`, {
+              method: "GET",
+              headers: { Authorization: `Bearer ${cronSecret}` },
+            });
+            if (res.ok) {
+              console.log(`[${WORKER_ID}] self-enqueue DAILY morning-health: triggered (Vercel cron 不発火 補完)`);
+            } else {
+              console.warn(`[${WORKER_ID}] morning-health trigger failed: ${res.status}`);
+            }
+          } catch (err: any) {
+            console.warn(`[${WORKER_ID}] morning-health fetch error:`, err?.message);
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error(`[${WORKER_ID}] self-enqueue DAILY error:`, err?.message);
+  }
+}
+
 // Main loop
 async function main() {
   console.log(`[${WORKER_ID}] Starting queue worker...`);
@@ -209,6 +361,14 @@ async function main() {
   if (stuck && stuck.length > 0) {
     console.log(`[${WORKER_ID}] Reset ${stuck.length} stuck tasks`);
   }
+
+  // self-enqueue を有効化（冪等性で複数ワーカーでも大丈夫）
+  isPrimaryEnqueuer = true;
+  await selfEnqueueTick(); // 起動直後に1回
+  await selfEnqueueDailyIfNeeded(); // 起動直後に1回
+  setInterval(selfEnqueueTick, SELF_ENQUEUE_INTERVAL_MS);
+  setInterval(selfEnqueueDailyIfNeeded, SELF_ENQUEUE_INTERVAL_MS);
+  console.log(`[${WORKER_ID}] self-enqueue interval: ${SELF_ENQUEUE_INTERVAL_MS / 1000}s (subsystems + daily)`);
 
   // Poll loop
   while (!isShuttingDown) {

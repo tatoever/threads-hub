@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { StatusDot, statusToTone } from "@/components/shell/StatusDot";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { HealthSummaryCard, type HealthSummary } from "@/components/dashboard/HealthSummaryCard";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,13 @@ export default async function PipelinePage() {
     .in("status", ["pending", "processing"])
     .order("priority", { ascending: true });
 
+  const { data: healthRow } = await supabase
+    .from("daily_health_summaries")
+    .select("*")
+    .eq("date", today)
+    .maybeSingle();
+  const healthSummary = (healthRow as HealthSummary | null) ?? null;
+
   const pipelineByAccount = new Map<string, any[]>();
   pipelineRuns?.forEach((r: any) => {
     const existing = pipelineByAccount.get(r.account_id) || [];
@@ -58,6 +66,8 @@ export default async function PipelinePage() {
         title="パイプライン"
         description={`${today} · フェーズごとの実行状況`}
       />
+
+      <HealthSummaryCard summary={healthSummary} />
 
       {pendingTasks && pendingTasks.length > 0 && (
         <Card className="p-5 bg-info-muted/40 border-info/20">

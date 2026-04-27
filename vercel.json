@@ -3,6 +3,7 @@
   "crons": [
     { "path": "/api/cron/pipeline",         "schedule": "0 20 * * *" },
     { "path": "/api/cron/concept-designer", "schedule": "30 20 * * *" },
-    { "path": "/api/cron/daily-check",      "schedule": "0 21 * * *" }
+    { "path": "/api/cron/daily-check",      "schedule": "0 21 * * *" },
+    { "path": "/api/cron/morning-health",   "schedule": "0 22 * * *" }
   ]
 }
