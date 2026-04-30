@@ -43,6 +43,25 @@ export async function runPublish(task: TaskData): Promise<Record<string, any>> {
     return { status: "no_due_posts" };
   }
 
+  // E2 (2026-04-28 凍結事案対策): 同IPからの同時刻 publish を防ぐ
+  // 直近60秒以内に「他アカ」が published になっているなら 60-180秒待機
+  // → CIB (Coordinated Inauthentic Behavior) シグナル回避
+  const sixtyAgo = new Date(Date.now() - 60 * 1000).toISOString();
+  const { data: recentPub } = await supabase
+    .from("posts")
+    .select("id, account_id, published_at")
+    .gte("published_at", sixtyAgo)
+    .neq("account_id", account_id)
+    .order("published_at", { ascending: false })
+    .limit(1);
+  if (recentPub && recentPub.length > 0) {
+    const waitMs = 60_000 + Math.floor(Math.random() * 120_000); // 60-180秒
+    console.log(
+      `[publish] 他アカ直近 publish 検出 (${recentPub[0].account_id.slice(0, 8)}) → ${Math.round(waitMs / 1000)}秒待機 (E2 ジッタ)`
+    );
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
+
   const results: any[] = [];
 
   for (const post of duePosts) {
